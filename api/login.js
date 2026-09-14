@@ -8,13 +8,23 @@
    - Kredensial ADMIN dicek dari Environment Variable (gak pernah di Firebase).
    - Kredensial VIP/USER dicek di sini, di server, pakai Firebase Database
      Secret (FIREBASE_DB_SECRET) — browser cuma dikirimin HASIL cocok/tidak
-     plus data akun yang berhasil login, bukan seluruh daftarnya. */
+     plus data akun yang berhasil login, bukan seluruh daftarnya.
+   - Percobaan gagal beruntun dicatat per-IP di server (bukan cuma di
+     localStorage browser), jadi script yang nembak endpoint ini langsung
+     tanpa lewat form login sama sekali tetap kena kunci. */
 
 var db = require('./_lib/db');
+var RATE_PATH = 'hidz_login_rate_limit';
 
 module.exports = async function (req, res) {
     if (req.method !== 'POST') {
         res.status(200).json({ ok: false });
+        return;
+    }
+
+    var limit = await db.checkLoginRateLimit(RATE_PATH, req);
+    if (limit.blocked) {
+        res.status(200).json({ ok: false, locked: true, retryAfterSec: limit.retryAfterSec });
         return;
     }
 
@@ -33,6 +43,7 @@ module.exports = async function (req, res) {
     if (adminUser && adminPass &&
         username.toLowerCase() === adminUser.toLowerCase() &&
         password === adminPass) {
+        await db.clearLoginRateLimit(RATE_PATH, req);
         res.status(200).json({
             ok: true,
             account: {
@@ -59,6 +70,12 @@ module.exports = async function (req, res) {
 
     var found = null;
     for (var i = 0; i < list.length; i++) {
+        /* Admin CUMA boleh lolos lewat env var di atas — sengaja dilewati di
+           sini walau kebetulan masih ada record lama berrole admin nyangkut
+           di database (mis. sisa sebelum dipindah ke env var), supaya
+           password lama yang mungkin masih nempel di situ gak pernah lagi
+           bisa dipakai buat masuk. */
+        if (list[i].role === 'admin') continue;
         if (list[i].username.toLowerCase() === username.toLowerCase() && list[i].password === password) {
             found = list[i];
             break;
@@ -66,9 +83,11 @@ module.exports = async function (req, res) {
     }
 
     if (!found) {
+        await db.registerLoginFail(RATE_PATH, req);
         res.status(200).json({ ok: false });
         return;
     }
+    await db.clearLoginRateLimit(RATE_PATH, req);
 
     /* Password TIDAK ikut dikirim balik — browser yang minta login sudah
        tahu password itu sendiri (baru saja diketik), jadi gak perlu
