@@ -3,6 +3,7 @@
    download+timpa seluruh daftar akun sendiri kayak sebelumnya. */
 
 var db = require('../_lib/db');
+var pw = require('../_lib/password');
 
 module.exports = async function (req, res) {
     if (req.method !== 'POST') {
@@ -52,7 +53,7 @@ module.exports = async function (req, res) {
     var newUser = {
         id:            'u_' + now,
         username:      newUsername,
-        password:      newPassword,
+        password:      pw.hashPassword(newPassword),
         role:          'user',
         createdAt:     now,
         createdBy:     { id: me.id, username: me.username },
@@ -72,5 +73,9 @@ module.exports = async function (req, res) {
         return;
     }
 
-    res.status(200).json({ ok: true, user: newUser });
+    /* Password asli (bukan hash) sengaja tetap dibalikin SEKALI di sini —
+       ini cuma echo dari apa yang barusan diketik VIP sendiri di form,
+       dipakai buat ditampilkan/disalin begitu akun selesai dibuat. Yang
+       tersimpan di database tetap hash-nya (newUser.password di atas). */
+    res.status(200).json({ ok: true, user: Object.assign({}, newUser, { password: newPassword }) });
 };

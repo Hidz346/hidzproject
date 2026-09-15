@@ -34,6 +34,10 @@ module.exports = async function (req, res) {
         return;
     }
 
-    var users = list.filter(function (u) { return u.role === 'user'; });
+    var users = list.filter(function (u) { return u.role === 'user'; }).map(function (u) {
+        var copy = {};
+        Object.keys(u).forEach(function (k) { if (k !== 'password') copy[k] = u[k]; });
+        return copy;
+    });
     res.status(200).json({ ok: true, users: users });
 };
