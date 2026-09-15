@@ -79,6 +79,8 @@ async function removeAccountTraces(id) {
     ]);
 }
 
+var pw = require('./password');
+
 /* Cek apakah {id, username, password} yang dikirim benar-benar akun VIP
    yang valid di dalam daftar. Dipakai tiap endpoint Panel VIP sebelum
    ngizinin baca/tulis apa pun. */
@@ -87,7 +89,7 @@ function findValidVip(list, vipId, vipUsername, vipPassword) {
     if (!me) return null;
     if (me.role !== 'vip') return null;
     if ((me.username || '').toLowerCase() !== (vipUsername || '').toLowerCase()) return null;
-    if (me.password !== vipPassword) return null;
+    if (!pw.verifyPassword(vipPassword, me.password)) return null;
     return me;
 }
 
