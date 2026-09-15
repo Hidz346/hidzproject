@@ -14,6 +14,7 @@
      tanpa lewat form login sama sekali tetap kena kunci. */
 
 var db = require('./_lib/db');
+var pw = require('./_lib/password');
 var RATE_PATH = 'hidz_login_rate_limit';
 
 module.exports = async function (req, res) {
@@ -101,7 +102,7 @@ module.exports = async function (req, res) {
            password lama yang mungkin masih nempel di situ gak pernah lagi
            bisa dipakai buat masuk. */
         if (list[i].role === 'admin') continue;
-        if (list[i].username.toLowerCase() === username.toLowerCase() && list[i].password === password) {
+        if (list[i].username.toLowerCase() === username.toLowerCase() && pw.verifyPassword(password, list[i].password)) {
             found = list[i];
             break;
         }
