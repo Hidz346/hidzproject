@@ -5,7 +5,9 @@ Update ini menambahkan lapisan keamanan server-side tanpa mengubah alur login ut
 ## Yang ditambahkan
 - Deteksi pola SQL injection, script/defacement injection, path traversal dan command-injection pada request API.
 - IP yang terdeteksi otomatis diblokir di application layer selama 24 jam; pelanggaran berulang memperpanjang sampai maksimal 7 hari.
+- Request flood pada API dibatasi di application layer; jika melewati ambang, IP mendapat blokir sementara 10 menit.
 - Event keamanan disimpan di Firebase pada `hidz_security_events` dan IP block pada `hidz_security_ip_blocks`.
+- Laporan CSP disimpan terpisah di `hidz_security_csp_reports` dan tidak dianggap sebagai serangan otomatis.
 - HidzAdmin memiliki monitor keamanan dan tombol BUKA BLOKIR.
 - Security guard dipasang pada seluruh endpoint `/api` di HidzProject.
 - Password tidak ikut dipindai oleh regex untuk mengurangi false-positive.
@@ -27,3 +29,9 @@ Project ini menggunakan Firebase Realtime Database, bukan query SQL langsung. Ja
 
 ## Deface
 Vercel deployment bersifat immutable; script ini tidak mencoba "memperbaiki" file deployment dari runtime. Header keamanan dan deteksi payload membantu mencegah XSS/injection, sedangkan integritas deployment harus dijaga melalui Git/Vercel dan akses akun.
+
+## CSP reports
+CSP `Report-Only` tetap dipakai sebagai telemetry. Laporan browser tidak lagi masuk ke daftar `Event Terbaru` sebagai ancaman, karena satu halaman dapat menghasilkan beberapa laporan CSP yang sah. HidzAdmin hanya menampilkan jumlah laporan CSP secara terpisah.
+
+## Rate limiting aplikasi
+Security guard menerapkan jendela 60 detik dengan batas 90 request per IP pada endpoint yang dilindungi. Pelampauan batas menghasilkan HTTP 429 dan blokir sementara 10 menit. Ambang ini adalah lapisan aplikasi, bukan pengganti rate limiting di CDN/WAF.
