@@ -35,3 +35,21 @@ CSP `Report-Only` tetap dipakai sebagai telemetry. Laporan browser tidak lagi ma
 
 ## Rate limiting aplikasi
 Security guard menerapkan jendela 60 detik dengan batas 90 request per IP pada endpoint yang dilindungi. Pelampauan batas menghasilkan HTTP 429 dan blokir sementara 10 menit. Ambang ini adalah lapisan aplikasi, bukan pengganti rate limiting di CDN/WAF.
+
+
+## Firebase Authentication hardening
+
+Versi hardened menggunakan Firebase Authentication untuk mengikat akses Realtime Database ke identitas akun. API login membuat custom token di server; browser kemudian sign-in ke Firebase Auth sebelum memakai listener realtime.
+
+Set environment variable server berikut di Vercel untuk HIDZPROJECT dan HidzAdmin:
+
+- `FIREBASE_SERVICE_ACCOUNT_JSON` = seluruh JSON service account Firebase, atau gunakan tiga variable berikut:
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_CLIENT_EMAIL`
+  - `FIREBASE_PRIVATE_KEY`
+
+Jangan commit service-account JSON/private key ke GitHub.
+
+Rules sekarang mengizinkan user mengakses node miliknya sendiri berdasarkan `auth.uid`, sedangkan operasi admin menggunakan custom claim `admin=true`. Node server-only tetap tertutup dari client.
+
+Setelah environment variable dipasang, deploy API terlebih dahulu. Kemudian uji login user/admin dan fitur realtime. Firebase merekomendasikan Local Emulator Suite untuk pengujian Rules sebelum production.
