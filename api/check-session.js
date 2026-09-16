@@ -6,7 +6,7 @@
 
 var db = require('./_lib/db');
 
-var securityGuard = require('_lib/security');
+var securityGuard = require('./_lib/security');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;

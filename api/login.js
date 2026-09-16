@@ -17,7 +17,8 @@ var db = require('./_lib/db');
 var pw = require('./_lib/password');
 var RATE_PATH = 'hidz_login_rate_limit';
 
-var securityGuard = require('_lib/security');
+var securityGuard = require('./_lib/security');
+var firebaseAuth = require('./_lib/firebase-auth');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;
@@ -70,8 +71,13 @@ module.exports = async function (req, res) {
             }
         } catch (e) {}
 
+        var adminToken;
+        try { adminToken = await firebaseAuth.createCustomToken('admin_hidz_protected', { admin: true, role: 'admin' }); }
+        catch (e) { res.status(503).json({ ok: false, error: true, code: 'FIREBASE_AUTH_CONFIG' }); return; }
+
         res.status(200).json({
             ok: true,
+            firebaseToken: adminToken,
             account: {
                 id:            'admin_hidz_protected',
                 username:      username,
@@ -123,8 +129,13 @@ module.exports = async function (req, res) {
        dikirim ulang lewat jaringan. durationMs WAJIB ikut dikirim karena
        dipakai buat hitung expiresAt begitu akun ini pertama kali login
        (lihat _completeLogin di hidzproject.html). */
+    var userToken;
+    try { userToken = await firebaseAuth.createCustomToken(found.id, { role: found.role || 'user' }); }
+    catch (e) { res.status(503).json({ ok: false, error: true, code: 'FIREBASE_AUTH_CONFIG' }); return; }
+
     res.status(200).json({
         ok: true,
+        firebaseToken: userToken,
         account: {
             id:            found.id,
             username:      found.username,

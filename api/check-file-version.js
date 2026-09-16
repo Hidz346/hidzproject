@@ -23,7 +23,7 @@ var db = require('./_lib/db');
 
 var FILE_VERSION = 'HIDZ_FV_2026-07-18_01';
 
-var securityGuard = require('_lib/security');
+var securityGuard = require('./_lib/security');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;
