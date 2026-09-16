@@ -5,7 +5,10 @@
 var db = require('../_lib/db');
 var pw = require('../_lib/password');
 
+var securityGuard = require('../_lib/security');
+
 module.exports = async function (req, res) {
+    if (!(await securityGuard.guard(req, res))) return;
     if (req.method !== 'POST') {
         res.status(200).json({ ok: false });
         return;
