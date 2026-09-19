@@ -47,7 +47,7 @@ module.exports = async function (req, res) {
     var adminPass = process.env.ADMIN_PASSWORD || '';
     if (adminUser && adminPass &&
         username.toLowerCase() === adminUser.toLowerCase() &&
-        password === adminPass) {
+        pw.timingSafeStringEqual(password, adminPass)) {
         await db.clearLoginRateLimit(RATE_PATH, req);
 
         /* Ambil record akun admin yang sudah ada di hidz_access_db (kalau

@@ -40,7 +40,7 @@ module.exports = async function (req, res) {
         var adminPass = process.env.ADMIN_PASSWORD || '';
         if (!adminUser || !adminPass ||
             username.toLowerCase() !== adminUser.toLowerCase() ||
-            password !== adminPass) {
+            !pw.timingSafeStringEqual(password, adminPass)) {
             res.status(200).json({ ok: false });
             return;
         }
