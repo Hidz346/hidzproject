@@ -7,6 +7,12 @@ var pw = require('../_lib/password');
 
 var securityGuard = require('../_lib/security');
 
+/* Panel VIP re-verifikasi vipId+vipUsername+vipPassword tiap request —
+   tanpa lockout sendiri, itu cuma kena rate limit umum 90 req/menit
+   (security.js), yang kelonggaran buat nyoba nebak password. Lockout ini
+   di-key pakai vipId, jadi tetap kena kunci walau attacker ganti-ganti IP. */
+var VIP_RATE_PATH = 'hidz_vip_rate_limit';
+
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;
     if (req.method !== 'POST') {
@@ -30,6 +36,12 @@ module.exports = async function (req, res) {
         return;
     }
 
+    var limit = await db.checkRateLimitByKey(VIP_RATE_PATH, vipId);
+    if (limit.blocked) {
+        res.status(200).json({ ok: false, locked: true, retryAfterSec: limit.retryAfterSec });
+        return;
+    }
+
     var list = await db.fetchAllAccounts();
     if (list === null) {
         res.status(200).json({ ok: false, error: true });
@@ -38,9 +50,11 @@ module.exports = async function (req, res) {
 
     var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
     if (!me) {
+        await db.registerRateLimitFailByKey(VIP_RATE_PATH, vipId);
         res.status(200).json({ ok: false });
         return;
     }
+    await db.clearRateLimitByKey(VIP_RATE_PATH, vipId);
 
     var dup = list.some(function (u) { return (u.username || '').toLowerCase() === newUsername.toLowerCase(); });
     if (dup) {
