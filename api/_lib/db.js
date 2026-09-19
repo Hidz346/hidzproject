@@ -110,34 +110,54 @@ function callerKey(req) {
     return ip.replace(/[.#$\[\]/:]/g, '_');
 }
 
-/* { blocked: true, retryAfterSec } kalau IP ini lagi kena kunci,
-   { blocked: false } kalau boleh lanjut cek kredensial. */
-async function checkLoginRateLimit(path, req) {
-    var rec = await fetchPath(path + '/' + callerKey(req));
+function sanitizeRateLimitKey(key) {
+    return String(key).replace(/[.#$\[\]/:]/g, '_');
+}
+
+/* Versi generic — dikunci pakai key apa pun (bukan cuma IP), dipakai ulang
+   sama fungsi IP-based di bawah maupun langsung buat lockout per-akun
+   (mis. Panel VIP, yang diverifikasi ulang pakai vipId+password tiap
+   request, jadi butuh lockout sendiri di luar cuma rate limit IP umum). */
+async function checkRateLimitByKey(path, key) {
+    var rec = await fetchPath(path + '/' + sanitizeRateLimitKey(key));
     if (rec && rec.lockedUntil && Date.now() < rec.lockedUntil) {
         return { blocked: true, retryAfterSec: Math.ceil((rec.lockedUntil - Date.now()) / 1000) };
     }
     return { blocked: false };
 }
 
-/* Panggil tiap kredensial yang dikirim TERNYATA salah. */
-async function registerLoginFail(path, req) {
-    var key = callerKey(req);
-    var rec = (await fetchPath(path + '/' + key)) || { fails: 0, tier: 0 };
+async function registerRateLimitFailByKey(path, key) {
+    var k = sanitizeRateLimitKey(key);
+    var rec = (await fetchPath(path + '/' + k)) || { fails: 0, tier: 0 };
     var fails = (rec.fails || 0) + 1;
     if (fails >= RATE_LIMIT_MAX_FAILS) {
         var tier   = rec.tier || 0;
         var lockMs = Math.min(RATE_LIMIT_BASE_MS * Math.pow(2, tier), RATE_LIMIT_CAP_MS);
-        await setPath(path + '/' + key, { fails: 0, tier: tier + 1, lockedUntil: Date.now() + lockMs });
+        await setPath(path + '/' + k, { fails: 0, tier: tier + 1, lockedUntil: Date.now() + lockMs });
     } else {
-        await setPath(path + '/' + key, { fails: fails, tier: rec.tier || 0 });
+        await setPath(path + '/' + k, { fails: fails, tier: rec.tier || 0 });
     }
+}
+
+async function clearRateLimitByKey(path, key) {
+    await deletePath(path + '/' + sanitizeRateLimitKey(key));
+}
+
+/* { blocked: true, retryAfterSec } kalau IP ini lagi kena kunci,
+   { blocked: false } kalau boleh lanjut cek kredensial. */
+async function checkLoginRateLimit(path, req) {
+    return checkRateLimitByKey(path, callerKey(req));
+}
+
+/* Panggil tiap kredensial yang dikirim TERNYATA salah. */
+async function registerLoginFail(path, req) {
+    return registerRateLimitFailByKey(path, callerKey(req));
 }
 
 /* Panggil tiap kredensial yang dikirim TERNYATA benar — reset hitungan
    gagal beruntun punya IP itu. */
 async function clearLoginRateLimit(path, req) {
-    await deletePath(path + '/' + callerKey(req));
+    return clearRateLimitByKey(path, callerKey(req));
 }
 
 module.exports = {
@@ -151,5 +171,8 @@ module.exports = {
     findValidVip: findValidVip,
     checkLoginRateLimit: checkLoginRateLimit,
     registerLoginFail: registerLoginFail,
-    clearLoginRateLimit: clearLoginRateLimit
+    clearLoginRateLimit: clearLoginRateLimit,
+    checkRateLimitByKey: checkRateLimitByKey,
+    registerRateLimitFailByKey: registerRateLimitFailByKey,
+    clearRateLimitByKey: clearRateLimitByKey
 };
