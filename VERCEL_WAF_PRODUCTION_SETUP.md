@@ -1,63 +1,88 @@
 # HIDZPROJECT — Vercel Firewall Production Setup
 
-This project keeps application-level protection in the API and uses Vercel Firewall for the edge layer. Do not try to replace the Vercel Firewall with JavaScript rate limiting: the edge layer must stop abusive traffic before it reaches the Functions.
+HIDZPROJECT uses two security layers:
 
-## 1. DDoS protection
+1. Vercel Firewall at the edge for DDoS and abusive request mitigation.
+2. Server-side protection in `api/_lib/security.js`, plus credential-based rate limits in the login and VIP APIs.
 
-Vercel's platform-wide DDoS mitigation is automatic for Vercel deployments. No application code is required for this layer.
+The application layer is defense in depth. It must not be treated as the DDoS boundary.
 
-## 2. Custom WAF rules
+## 1. Automatic DDoS protection
 
-Open the Vercel project → **Firewall** → **Configure** → **Custom Rules**.
+Vercel provides platform-level DDoS mitigation automatically for deployed projects. No application code is required for this layer.
 
-Create these rules and publish them:
+## 2. Hobby-plan firewall layout
 
-### Rule A — protect authentication
+The current Vercel firewall supports custom rules on Hobby. Current Hobby limits are three custom firewall rules per project and one rate-limiting rule per project. Bot Protection is available as a managed ruleset. The OWASP Core Ruleset is not available on Hobby.
+
+Because HIDZPROJECT is on the Hobby plan, keep the configuration within those limits. Do not create multiple rate-limit rules.
+
+## 3. Rule 1 — authentication and privileged API rate limit
+
+Create one custom rule:
 
 - Name: `HIDZ Auth Abuse`
-- Request Path: starts with `/api/login` OR equals `/api/admin-login`
-- Action: **Rate Limit**
-- Follow-up action: **Deny / 429**
-- Start conservatively and watch the live traffic window before tightening it.
+- Match: `POST` requests to `/api/login` OR `/api/admin-login` OR `/api/vip/`
+- Rate limit: `20 requests / 60 seconds / IP`
+- Exceeded action: `429`
+- Keep the rule active and publish it.
 
-### Rule B — protect admin API
+Do not rate-limit every `/api/*` route. `/api/check-session` and `/api/check-file-version` are normal browser traffic and can be called repeatedly during a normal session.
 
-- Name: `HIDZ Admin API`
-- Request Path: starts with `/api/admin/`
-- Action: **Rate Limit**
-- Follow-up action: **Deny / 429**
+The application also has per-IP login lockout and per-VIP-ID credential lockout, so rotating browser sessions does not remove every protection layer.
 
-### Rule C — suspicious non-browser traffic
+## 4. Rule 2 — common scanner paths
 
-Use Vercel's Bot Protection / challenge capability where available. Do not blanket-block cURL or all non-browser clients because legitimate monitoring and API tooling may use them.
+Create one blocking rule for obvious probes that are not part of HIDZPROJECT:
 
-### Rule D — emergency IP blocking
+- `/.env`
+- `/.git/`
+- `/wp-admin`
+- `/wp-login.php`
+- `/xmlrpc.php`
+- `/phpmyadmin`
+- `/server-status`
+- `/cgi-bin/`
 
-Use Firewall → IP Blocking for confirmed abusive addresses. Do not put normal users into permanent blocks merely because of a single transient 429.
+Action: `Deny`.
 
-## 3. Managed rules
+Keep this rule path-based. Do not globally block words such as `select`, `union`, or `script`; the application guard already handles suspicious payload patterns on protected API routes and a global string rule can create false positives.
 
-If the project's Vercel plan exposes managed rulesets, enable the available OWASP/bot protection rules after first observing them in log mode where supported. Review false positives before enforcing aggressive rules.
+## 5. Rule 3 — bot protection
 
-## 4. Attack Challenge Mode
+Enable Vercel's **Bot Protection** managed ruleset for the project.
 
-Use **Attack Challenge Mode** temporarily during an active attack when normal traffic is being overwhelmed. It is a mitigation switch, not a permanent replacement for normal WAF rules.
+Use challenge behavior for suspicious automated traffic where the project exposes that option. Do not blanket-block every non-browser client because monitoring and legitimate API tooling can use non-browser clients.
 
-## 5. Application layer
+## 6. Managed OWASP rules
 
-The project also keeps a server-side rate limiter and suspicious-input detector. This is intentionally retained as defense in depth. It should never be treated as the DDoS boundary.
+Do not expect the OWASP Core Ruleset on Hobby; it is not available on this plan.
 
-## 6. Production verification
+The server-side guard remains enabled and detects common SQL injection, XSS/script, path traversal, and command-style payloads. Detected abusive IPs are temporarily blocked in the application layer.
 
-After publishing WAF changes:
+## 7. Attack Challenge Mode
+
+Use **Attack Challenge Mode** only during an active attack or severe traffic spike. It is an emergency control, not a permanent replacement for the normal rules.
+
+## 8. Emergency IP blocking
+
+Use **Firewall → IP Blocking** for confirmed abusive addresses. Keep the block targeted and review false positives.
+
+## 9. Production verification
+
+After publishing the firewall changes:
 
 1. Open the live site normally.
-2. Test login once with valid credentials.
-3. Test login once with an invalid credential.
-4. Open the admin panel and load the account list.
-5. Create/extend/delete one test account if appropriate.
-6. Log out and confirm the session is invalidated.
-7. Check Vercel Firewall live traffic for unexpected blocking.
-8. Check Vercel deployment logs for 4xx/5xx spikes.
+2. Test one valid user login.
+3. Test one invalid login.
+4. Confirm session checking still works.
+5. Open VIP/admin features that you actually use.
+6. Confirm logout still works.
+7. Watch Vercel Firewall traffic for false positives.
+8. Check production logs for 4xx/5xx spikes.
 
-Do not intentionally generate a large traffic flood against the production domain to test DDoS protection.
+Do not intentionally generate a large production traffic flood to test DDoS mitigation.
+
+## 10. CSP reporting
+
+CSP reports stay separate from attack events. The existing `/api/security-csp-report` endpoint is telemetry only, so CSP noise does not automatically become an attack event in HidzAdmin.
