@@ -51,9 +51,6 @@ module.exports = async function (req, res) {
        pengunjung lain yang baca bersamaan tidak ikut memicu reset dobel. */
     await db.setPath('hidz_file_ver', FILE_VERSION);
 
-    var list = await db.fetchAllAccounts();
-    if (list === null) list = [];
-
     /* Reset status login SEMUA akun TERMASUK ADMIN — berlaku untuk semua
        role, semua tipe durasi (terbatas maupun unlimited), dan semua
        limit device, supaya konsisten dengan tombol FORCE RESET SEMUA
@@ -61,31 +58,31 @@ module.exports = async function (req, res) {
        di-"pause": SISA durasinya disimpan balik ke durationMs (bukan
        dibuang), supaya saat login lagi TIDAK mengulang dari durasi
        penuh semula. */
-    var now     = Date.now();
-    var changed = false;
-    list.forEach(function (u) {
-        if (!u) return;
-        var isUnlimitedDur = !(typeof u.durationMs === 'number' && u.durationMs > 0);
-        if (isUnlimitedDur) {
-            u.activated = false;
-        } else if (u.activated === true && u.expiresAt && (now <= u.expiresAt)) {
-            u.durationMs = Math.max(0, u.expiresAt - now);
-            u.expiresAt  = null;
-            u.activated  = false;
-        }
-        u.logoutAt  = now;
-        u.loggedOut = false;
-        changed = true;
+    var now = Date.now();
+    var out = await db.mutateAccounts(function (list) {
+        list.forEach(function (u) {
+            var isUnlimitedDur = !(typeof u.durationMs === 'number' && u.durationMs > 0);
+            if (isUnlimitedDur) {
+                u.activated = false;
+            } else if (u.activated === true && u.expiresAt && (now <= u.expiresAt)) {
+                u.durationMs = Math.max(0, u.expiresAt - now);
+                u.expiresAt  = null;
+                u.activated  = false;
+            }
+            u.logoutAt  = now;
+            u.loggedOut = false;
+        });
+        return {
+            save: list.length > 0,
+            result: list.map(function (u) { return u.id; })
+        };
     });
-
-    if (changed) await db.saveAllAccounts(list);
+    var ids = out.ok ? out.result : [];
 
     /* Bersihkan sisa sesi/banned/blocked-device lama tiap akun (termasuk
        admin), supaya tidak ada yang keliru kena "AKUN DIBLOKIR" gara-gara
        data sesi basi peninggalan sebelum update file ini. */
-    await Promise.all(list.map(function (u) {
-        return u ? db.removeAccountTraces(u.id) : Promise.resolve();
-    }));
+    await Promise.all(ids.map(function (id) { return db.removeAccountTraces(id); }));
 
     /* Kirim signal force re-login ke semua user */
     await db.setPath('hidz_force_relogin', Date.now());

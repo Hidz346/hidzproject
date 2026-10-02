@@ -59,52 +59,41 @@ module.exports = async function (req, res) {
         }
     }
 
-    var list = await db.fetchAllAccounts();
-    if (list === null) {
+    var out = await db.mutateAccounts(function (list) {
+        var idx = -1;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].id === id) { idx = i; break; }
+        }
+
+        /* Record admin belum pernah tersimpan di hidz_access_db (mis. login
+           admin pertama kali sebelum record protected-nya pernah dibuat) —
+           tidak ada apa pun yang perlu diaktifkan di database, biarkan
+           hidzproject.html lanjut pakai status aktif lokal seperti biasa. */
+        if (idx === -1) return { save: false, result: { ok: true, account: null } };
+
+        var u = list[idx];
+        if ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password)) {
+            return { save: false, result: { ok: false } };
+        }
+
+        /* Sudah aktif duluan (mis. dua tab dibuka bersamaan, tab pertama
+           sudah lebih dulu mengaktifkan) — kembalikan apa adanya, tidak perlu
+           menulis ulang. */
+        if (u.activated !== false) return { save: false, result: { ok: true, account: sanitize(u) } };
+
+        var hasLimitedDur = (typeof u.durationMs === 'number' && u.durationMs > 0);
+        var now = Date.now();
+        u.activated = true;
+        u.expiresAt = hasLimitedDur ? (now + u.durationMs) : null;
+        u.loginAt   = now;
+        u.loggedOut = false;
+
+        return { save: true, result: { ok: true, account: sanitize(u) } };
+    });
+
+    if (!out.ok) {
         res.status(200).json({ ok: false, error: true });
         return;
     }
-
-    var idx = -1;
-    for (var i = 0; i < list.length; i++) {
-        if (list[i] && list[i].id === id) { idx = i; break; }
-    }
-
-    /* Record admin belum pernah tersimpan di hidz_access_db (mis. login
-       admin pertama kali sebelum record protected-nya pernah dibuat) —
-       tidak ada apa pun yang perlu diaktifkan di database, biarkan
-       hidzproject.html lanjut pakai status aktif lokal seperti biasa. */
-    if (idx === -1) {
-        res.status(200).json({ ok: true, account: null });
-        return;
-    }
-
-    var u = list[idx];
-    if ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password)) {
-        res.status(200).json({ ok: false });
-        return;
-    }
-
-    /* Sudah aktif duluan (mis. dua tab dibuka bersamaan, tab pertama
-       sudah lebih dulu mengaktifkan) — kembalikan apa adanya, tidak perlu
-       menulis ulang. */
-    if (u.activated !== false) {
-        res.status(200).json({ ok: true, account: sanitize(u) });
-        return;
-    }
-
-    var hasLimitedDur = (typeof u.durationMs === 'number' && u.durationMs > 0);
-    var now = Date.now();
-    u.activated = true;
-    u.expiresAt = hasLimitedDur ? (now + u.durationMs) : null;
-    u.loginAt   = now;
-    u.loggedOut = false;
-
-    var ok = await db.saveAllAccounts(list);
-    if (!ok) {
-        res.status(200).json({ ok: false, error: true });
-        return;
-    }
-
-    res.status(200).json({ ok: true, account: sanitize(u) });
+    res.status(200).json(out.result);
 };

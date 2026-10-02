@@ -53,5 +53,13 @@ module.exports = async function (req, res) {
         return;
     }
 
-    res.status(200).json({ valid: true });
+    /* Sertakan expiresAt & label durasi TERBARU supaya browser user langsung
+       ikut berubah begitu admin menambah/mengurangi durasi — tanpa ini
+       countdown dan timer auto-logout terus memakai nilai lama dari waktu
+       login. Cuma angka waktu & label yang dikirim, bukan data akun lain. */
+    res.status(200).json({
+        valid: true,
+        expiresAt: (typeof found.expiresAt === 'number') ? found.expiresAt : null,
+        durationLabel: found.durationLabel || null
+    });
 };

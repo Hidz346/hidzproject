@@ -46,30 +46,21 @@ module.exports = async function (req, res) {
         }
     }
 
-    var list = await db.fetchAllAccounts();
-    if (list === null) {
-        res.status(200).json({ ok: false, error: true });
-        return;
-    }
+    var out = await db.mutateAccounts(function (list) {
+        var u = null;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].id === id) { u = list[i]; break; }
+        }
 
-    var u = null;
-    for (var i = 0; i < list.length; i++) {
-        if (list[i] && list[i].id === id) { u = list[i]; break; }
-    }
+        /* Record admin belum pernah tersimpan (mis. logout admin sebelum
+           pernah punya record protected) — tidak ada apa pun yang perlu
+           di-pause, cukup anggap berhasil. */
+        if (!u) return { save: false, result: { ok: true } };
+        if ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password)) {
+            return { save: false, result: { ok: false } };
+        }
+        if (u.activated !== true) return { save: false, result: { ok: true } };
 
-    /* Record admin belum pernah tersimpan (mis. logout admin sebelum
-       pernah punya record protected) — tidak ada apa pun yang perlu
-       di-pause, cukup anggap berhasil. */
-    if (!u) {
-        res.status(200).json({ ok: true });
-        return;
-    }
-    if ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password)) {
-        res.status(200).json({ ok: false });
-        return;
-    }
-
-    if (u.activated === true) {
         var now = Date.now();
         if (u.expiresAt) {
             u.durationMs = Math.max(0, u.expiresAt - now);
@@ -78,8 +69,14 @@ module.exports = async function (req, res) {
         u.activated = false;
         u.logoutAt  = now;
         u.loggedOut = true;
-        await db.saveAllAccounts(list);
-    }
+        return { save: true, result: { ok: true } };
+    });
 
-    res.status(200).json({ ok: true });
+    /* Browser memanggil ini sambil keluar dan tidak menunggu hasilnya, jadi
+       kalau penulisan gagal cukup dijawab gagal — tidak ada yang rusak. */
+    if (!out.ok) {
+        res.status(200).json({ ok: false, error: true });
+        return;
+    }
+    res.status(200).json(out.result);
 };

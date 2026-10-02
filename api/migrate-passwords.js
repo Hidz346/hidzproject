@@ -37,27 +37,20 @@ module.exports = async function (req, res) {
         return;
     }
 
-    var list = await db.fetchAllAccounts();
-    if (list === null) {
+    var out = await db.mutateAccounts(function (list) {
+        var migrated = 0;
+        list.forEach(function (u) {
+            if (u && u.password && !pw.isHashed(u.password)) {
+                u.password = pw.hashPassword(u.password);
+                migrated++;
+            }
+        });
+        return { save: migrated > 0, result: { total: list.length, migrated: migrated } };
+    });
+
+    if (!out.ok) {
         res.status(200).json({ ok: false, error: true });
         return;
     }
-
-    var migrated = 0;
-    list.forEach(function (u) {
-        if (u && u.password && !pw.isHashed(u.password)) {
-            u.password = pw.hashPassword(u.password);
-            migrated++;
-        }
-    });
-
-    if (migrated > 0) {
-        var ok = await db.saveAllAccounts(list);
-        if (!ok) {
-            res.status(200).json({ ok: false, error: true });
-            return;
-        }
-    }
-
-    res.status(200).json({ ok: true, total: list.length, migrated: migrated });
+    res.status(200).json({ ok: true, total: out.result.total, migrated: out.result.migrated });
 };
