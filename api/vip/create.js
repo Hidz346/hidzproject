@@ -42,57 +42,61 @@ module.exports = async function (req, res) {
         return;
     }
 
-    var list = await db.fetchAllAccounts();
-    if (list === null) {
+    /* Hash dihitung SEKALI di luar mutator (scrypt-nya mahal, dan mutator bisa
+       terpanggil ulang kalau ada bentrok penulisan). */
+    var hashed = pw.hashPassword(newPassword);
+
+    var out = await db.mutateAccounts(function (list) {
+        var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
+        if (!me) return { save: false, result: { valid: false } };
+
+        var dup = list.some(function (u) { return (u.username || '').toLowerCase() === newUsername.toLowerCase(); });
+        if (dup) return { save: false, result: { valid: true, response: { ok: false, reason: 'duplicate' } } };
+
+        var now = Date.now();
+        while (list.some(function (u) { return u.id === 'u_' + now; })) now++;
+
+        /* expiresAt sengaja dibiarkan null — hitung mundur baru mulai jalan
+           begitu akun ini pertama kali login (lihat _completeLogin di
+           hidzproject.html), bukan dari saat dibuat. Sama persis seperti
+           perilaku Panel VIP yang lama. */
+        var newUser = {
+            id:            'u_' + now,
+            username:      newUsername,
+            password:      hashed,
+            role:          'user',
+            createdAt:     now,
+            createdBy:     { id: me.id, username: me.username },
+            expiresAt:     null,
+            durationMs:    isUnlimited ? null : durationMs,
+            durationLabel: durationLabel,
+            deviceLimit:   deviceLimit,
+            activated:     false,
+            logoutAt:      null,
+            loginAt:       null,
+            loggedOut:     false
+        };
+        list.push(newUser);
+
+        /* Password asli (bukan hash) sengaja tetap dibalikin SEKALI di sini —
+           ini cuma echo dari apa yang barusan diketik VIP sendiri di form,
+           dipakai buat ditampilkan/disalin begitu akun selesai dibuat. Yang
+           tersimpan di database tetap hash-nya (newUser.password di atas). */
+        return {
+            save: true,
+            result: { valid: true, response: { ok: true, user: Object.assign({}, newUser, { password: newPassword }) } }
+        };
+    });
+
+    if (!out.ok) {
         res.status(200).json({ ok: false, error: true });
         return;
     }
-
-    var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
-    if (!me) {
+    if (!out.result.valid) {
         await db.registerRateLimitFailByKey(VIP_RATE_PATH, vipId);
         res.status(200).json({ ok: false });
         return;
     }
     await db.clearRateLimitByKey(VIP_RATE_PATH, vipId);
-
-    var dup = list.some(function (u) { return (u.username || '').toLowerCase() === newUsername.toLowerCase(); });
-    if (dup) {
-        res.status(200).json({ ok: false, reason: 'duplicate' });
-        return;
-    }
-
-    var now = Date.now();
-    /* expiresAt sengaja dibiarkan null — hitung mundur baru mulai jalan
-       begitu akun ini pertama kali login (lihat _completeLogin di
-       hidzproject.html), bukan dari saat dibuat. Sama persis seperti
-       perilaku Panel VIP yang lama. */
-    var newUser = {
-        id:            'u_' + now,
-        username:      newUsername,
-        password:      pw.hashPassword(newPassword),
-        role:          'user',
-        createdAt:     now,
-        createdBy:     { id: me.id, username: me.username },
-        expiresAt:     null,
-        durationMs:    isUnlimited ? null : durationMs,
-        durationLabel: durationLabel,
-        deviceLimit:   deviceLimit,
-        activated:     false,
-        logoutAt:      null,
-        loginAt:       null,
-        loggedOut:     false
-    };
-
-    var ok = await db.saveAllAccounts(list.concat([newUser]));
-    if (!ok) {
-        res.status(200).json({ ok: false, error: true });
-        return;
-    }
-
-    /* Password asli (bukan hash) sengaja tetap dibalikin SEKALI di sini —
-       ini cuma echo dari apa yang barusan diketik VIP sendiri di form,
-       dipakai buat ditampilkan/disalin begitu akun selesai dibuat. Yang
-       tersimpan di database tetap hash-nya (newUser.password di atas). */
-    res.status(200).json({ ok: true, user: Object.assign({}, newUser, { password: newPassword }) });
+    res.status(200).json(out.result.response);
 };

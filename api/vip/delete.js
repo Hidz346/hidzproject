@@ -34,33 +34,33 @@ module.exports = async function (req, res) {
         return;
     }
 
-    var list = await db.fetchAllAccounts();
-    if (list === null) {
+    var out = await db.mutateAccounts(function (list) {
+        var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
+        if (!me) return { save: false, result: { valid: false } };
+
+        var target = list.filter(function (u) { return u.id === targetId; })[0];
+        if (!target || target.role !== 'user') {
+            return { save: false, result: { valid: true, response: { ok: false, reason: 'not_found' } } };
+        }
+
+        return {
+            save: true,
+            list: list.filter(function (u) { return u.id !== targetId; }),
+            result: { valid: true, response: { ok: true } }
+        };
+    });
+
+    if (!out.ok) {
         res.status(200).json({ ok: false, error: true });
         return;
     }
-
-    var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
-    if (!me) {
+    if (!out.result.valid) {
         await db.registerRateLimitFailByKey(VIP_RATE_PATH, vipId);
         res.status(200).json({ ok: false });
         return;
     }
     await db.clearRateLimitByKey(VIP_RATE_PATH, vipId);
 
-    var target = list.filter(function (u) { return u.id === targetId; })[0];
-    if (!target || target.role !== 'user') {
-        res.status(200).json({ ok: false, reason: 'not_found' });
-        return;
-    }
-
-    var remaining = list.filter(function (u) { return u.id !== targetId; });
-    var ok = await db.saveAllAccounts(remaining);
-    if (!ok) {
-        res.status(200).json({ ok: false, error: true });
-        return;
-    }
-
-    await db.removeAccountTraces(targetId);
-    res.status(200).json({ ok: true });
+    if (out.result.response.ok) await db.removeAccountTraces(targetId);
+    res.status(200).json(out.result.response);
 };
