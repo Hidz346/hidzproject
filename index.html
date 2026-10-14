@@ -1,6 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
+<script id="hidz-iframe-autoplay-guard">
+(function(){
+  if(window.__HIDZ_IFRAME_GUARD__)return;
+  window.__HIDZ_IFRAME_GUARD__=true;
+  var perms="autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write; web-share";
+  var origCreate=Document.prototype.createElement;
+  Document.prototype.createElement=function(tag){
+    var el=origCreate.apply(this,arguments);
+    if(String(tag).toLowerCase()==="iframe"){
+      try{el.setAttribute("allow",perms);el.allow=perms;el.referrerPolicy="origin-when-cross-origin";}catch(_){}
+    }
+    return el;
+  };
+  var upgradeIframes=function(){
+    document.querySelectorAll("iframe").forEach(function(f){
+      if(f.getAttribute("allow")!==perms){f.setAttribute("allow",perms);f.allow=perms;}
+    });
+  };
+  var unlockChildAudio=function(){
+    upgradeIframes();
+    document.querySelectorAll("iframe").forEach(function(f){
+      try{if(f.contentWindow)f.contentWindow.postMessage({type:"HIDZ_UNLOCK_AUDIO"},"*");}catch(_){}
+    });
+  };
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",upgradeIframes,{once:true});
+  else upgradeIframes();
+  new MutationObserver(upgradeIframes).observe(document.documentElement,{childList:true,subtree:true});
+  ["pointerdown","touchend","click","keydown"].forEach(function(e){
+    window.addEventListener(e,unlockChildAudio,{capture:true,passive:true});
+  });
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="/manifest.json">
