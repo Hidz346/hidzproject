@@ -1,11 +1,4 @@
-/* Dipanggil hidzproject.html tiap beberapa detik selama user login, buat
-   nanya "akun aku masih ada/belum expired?" — TANPA perlu narik seluruh
-   daftar akun ke browser kayak listener real-time yang lama. Server yang
-   buka datanya (pakai Database Secret), browser cuma dapat jawaban
-   valid: true/false. */
-
 var db = require('./_lib/db');
-
 var securityGuard = require('./_lib/security');
 
 module.exports = async function (req, res) {
@@ -19,22 +12,13 @@ module.exports = async function (req, res) {
     var id   = typeof body.id === 'string' ? body.id : '';
     var role = typeof body.role === 'string' ? body.role : '';
 
-    if (!id) {
-        res.status(200).json({ valid: true });
-        return;
-    }
-
-    /* Admin gak pernah tercatat di hidz_access_db lagi, jadi gak perlu dicek
-       ke Firebase — validitasnya cuma bergantung pada ADMIN_USERNAME/
-       ADMIN_PASSWORD yang sudah dicek waktu login. */
-    if (role === 'admin') {
+    if (!id || role === 'admin') {
         res.status(200).json({ valid: true });
         return;
     }
 
     var list = await db.fetchAllAccounts();
     if (list === null) {
-        /* Secret belum diset / server bermasalah -> jangan asal logout orang */
         res.status(200).json({ valid: true });
         return;
     }
@@ -48,18 +32,19 @@ module.exports = async function (req, res) {
         res.status(200).json({ valid: false, reason: 'deleted' });
         return;
     }
-    if (found.expiresAt && Date.now() > found.expiresAt) {
+
+    var now = Date.now();
+    var hasPaused = (typeof found.pausedRemainingMs === 'number' && found.pausedRemainingMs > 0);
+    var effectiveExpiresAt = hasPaused ? (now + found.pausedRemainingMs) : found.expiresAt;
+
+    if (!hasPaused && found.expiresAt && now > found.expiresAt) {
         res.status(200).json({ valid: false, reason: 'expired' });
         return;
     }
 
-    /* Sertakan expiresAt & label durasi TERBARU supaya browser user langsung
-       ikut berubah begitu admin menambah/mengurangi durasi — tanpa ini
-       countdown dan timer auto-logout terus memakai nilai lama dari waktu
-       login. Cuma angka waktu & label yang dikirim, bukan data akun lain. */
     res.status(200).json({
         valid: true,
-        expiresAt: (typeof found.expiresAt === 'number') ? found.expiresAt : null,
+        expiresAt: (typeof effectiveExpiresAt === 'number') ? effectiveExpiresAt : null,
         durationLabel: found.durationLabel || null
     });
 };
