@@ -3376,6 +3376,48 @@
                 transform: translate(4px,4px);
                 box-shadow: 0px 0px 0px var(--border);
             }
+        
+/* ===== PRICING, CHECKOUT, QRIS & TRANSAKSI (HIDZPROJECT) ===== */
+.prc-status-card{background:var(--primary);color:#fff;border:3px solid var(--border);box-shadow:var(--shadow-md);padding:16px;margin-bottom:16px;position:relative;overflow:hidden}
+.prc-status-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.prc-role-badge{padding:4px 10px;font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;border:2px solid var(--border);background:var(--chip-bg);color:#0a0a0a;text-transform:uppercase}
+.prc-role-badge.is-vip{background:var(--y2k-lime);color:#0a0a0a}
+.prc-perks-card{background:var(--surface);border:3px solid var(--border);box-shadow:var(--shadow-sm);padding:14px;margin-bottom:16px}
+.prc-perk-item{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;font-weight:700;color:var(--text);padding:5px 0}
+.prc-perk-item i{color:#22c55e;margin-top:2px;flex-shrink:0}
+.prc-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.prc-voucher-box{background:var(--surface);border:3px solid var(--border);box-shadow:var(--shadow-sm);padding:12px;margin-bottom:16px;display:none}
+.prc-voucher-box.open{display:block}
+.prc-voucher-row{display:flex;gap:8px}
+.prc-voucher-inp{flex:1;padding:10px 12px;border:2.5px solid var(--border);background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;text-transform:uppercase;outline:none}
+.prc-voucher-active{margin-top:10px;padding:8px 10px;background:rgba(34,197,94,0.12);border:2px solid #22c55e;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;font-weight:800;color:#22c55e}
+.prc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding-bottom:24px}
+@media(max-width:350px){.prc-grid{grid-template-columns:1fr}}
+.prc-plan-card{background:var(--surface);border:3px solid var(--border);box-shadow:var(--shadow-sm);padding:14px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:10px;position:relative}
+.prc-plan-card.has-disc{border-color:#22c55e}
+.prc-plan-icon{width:38px;height:38px;background:var(--chip-bg);border:2px solid var(--border);box-shadow:2px 2px 0 var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--primary)}
+.prc-plan-name{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;color:var(--text)}
+.prc-plan-desc{font-size:11px;font-weight:600;color:var(--text-secondary)}
+.prc-price-old{font-size:11px;font-weight:700;color:#ef4444;text-decoration:line-through}
+.prc-price-now{font-family:'Orbitron',sans-serif;font-size:17px;font-weight:900;color:var(--primary)}
+.prc-plan- validity{font-size:10px;font-weight:700;color:var(--text-secondary)}
+.prc-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:320;display:none;align-items:center;justify-content:center;padding:16px}
+.prc-modal-backdrop.open{display:flex;animation:fade-in 0.2s ease}
+.prc-modal-card{width:100%;max-width:380px;max-height:90vh;overflow-y:auto;background:var(--surface);border:3px solid var(--border);box-shadow:6px 6px 0 var(--border);padding:18px 16px}
+.prc-modal-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:12px;border-bottom:2.5px solid var(--border);margin-bottom:14px}
+.prc-modal-ttl{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;color:var(--text);text-transform:uppercase}
+.prc-summary-box{background:var(--bg);border:2.5px solid var(--border);padding:12px;margin:12px 0}
+.prc-sum-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:var(--text-secondary);padding:5px 0}
+.prc-sum-row.total{border-top:2px dashed var(--border);margin-top:6px;padding-top:10px;font-size:14px;font-weight:900;color:var(--text)}
+.prc-pay-method{display:flex;align-items:center;gap:12px;padding:12px;border:2.5px solid var(--primary);background:var(--surface);box-shadow:3px 3px 0 var(--border);margin-bottom:14px}
+.prc-qris-box{background:#ffffff;border:3px solid var(--border);padding:14px;width:268px;height:268px;margin:12px auto;display:flex;align-items:center;justify-content:center;position:relative}
+.prc-qris-box img{width:240px;height:240px;object-fit:contain;display:block}
+.prc-qris-exp-mask{position:absolute;inset:0;background:rgba(10,10,10,0.86);display:none;flex-direction:column;align-items:center;justify-content:center;color:#ef4444;font-family:'Orbitron',sans-serif;font-weight:900;font-size:16px;letter-spacing:1px;text-align:center;padding:12px}
+.prc-qris-box.expired .prc-qris-exp-mask{display:flex}
+.prc-cd-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:var(--chip-bg);border:2px solid var(--border);font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;color:#0a0a0a;margin:4px auto 8px}
+.prc-receipt-card{background:var(--surface);border:3px solid var(--border);box-shadow:var(--shadow-md);padding:16px;margin-bottom:16px}
+.prc-receipt-badge{display:inline-block;padding:4px 10px;background:#22c55e;color:#fff;border:2px solid var(--border);font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900}
+
         </style>
 
         <script>
@@ -5213,17 +5255,175 @@
                 </div>
             </div>
 
-            <!-- Favorit Saya: daftar lengkap semua project yang difavoritkan -->
-            <div class="ann-overlay" id="favAllOverlay">
+            
+            <!-- Halaman PRICING: Upgrade ke VIP Otomatis (QRIS) -->
+            <div class="ann-overlay" id="pricingOverlay">
                 <div class="ann-header">
-                    <button class="icon-btn" title="Kembali" onclick="window.closeFavAll()">
+                    <button class="icon-btn" title="Kembali" onclick="window.closePricingSheet()">
                         <i class="fas fa-arrow-left"></i>
                     </button>
-                    <span class="ann-header-title">Favorit Saya</span>
-                    <div style="width: 36px"></div>
+                    <span class="ann-header-title">Pricing VIP</span>
+                    <button class="icon-btn" title="Riwayat Transaksi" onclick="window.openVipTxHistory()">
+                        <i class="fas fa-receipt"></i>
+                    </button>
                 </div>
                 <div class="ann-body">
-                    <div class="vertical-list" id="favAllList"></div>
+                    <div class="prc-status-card">
+                        <div class="prc-status-top">
+                            <div>
+                                <div style="font-size:11px;font-weight:800;opacity:0.85;text-transform:uppercase;">Status Plan Saat Ini</div>
+                                <div style="font-size:16px;font-weight:900;" id="prcAccUsername">-</div>
+                            </div>
+                            <span class="prc-role-badge" id="prcAccRoleBadge">USER</span>
+                        </div>
+                        <div style="font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1.5px solid rgba(255,255,255,0.25);padding-top:8px;">
+                            <span>Sisa Masa Aktif:</span>
+                            <span id="prcAccRemainLive" style="font-family:'Orbitron',monospace;">-</span>
+                        </div>
+                    </div>
+
+                    <div class="prc-perks-card">
+                        <div class="section-title" style="margin-top:0;">Keunggulan Plan VIP</div>
+                        <div class="prc-perk-item"><i class="fas fa-check-circle"></i><span>Akses penuh seluruh project &amp; tools eksklusif VIP di HidzProject</span></div>
+                        <div class="prc-perk-item"><i class="fas fa-check-circle"></i><span>Akses Panel VIP untuk membuat &amp; mengelola akun USER sendiri</span></div>
+                        <div class="prc-perk-item"><i class="fas fa-check-circle"></i><span>Aktivasi instan otomatis 24 jam via QRIS tanpa menunggu admin</span></div>
+                        <div class="prc-perk-item"><i class="fas fa-check-circle"></i><span>Pembelian ulang otomatis menambah masa aktif VIP yang sedang berjalan</span></div>
+                    </div>
+
+                    <div class="prc-toolbar">
+                        <button type="button" class="btn-action secondary" style="padding:10px;font-size:12px;" onclick="window.togglePricingVoucherBox()">
+                            <i class="fas fa-ticket-alt"></i> ADD VOUCHER
+                        </button>
+                        <button type="button" class="btn-action secondary" style="padding:10px;font-size:12px;" onclick="window.openVipTxHistory()">
+                            <i class="fas fa-clock-rotate-left"></i> RIWAYAT TRANSAKSI
+                        </button>
+                    </div>
+
+                    <div class="prc-voucher-box" id="prcVoucherBox">
+                        <div style="font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px;">Masukkan Kode Voucher</div>
+                        <div class="prc-voucher-row">
+                            <input type="text" class="prc-voucher-inp" id="prcVoucherInput" placeholder="KODE VOUCHER" maxlength="20" autocomplete="off">
+                            <button type="button" class="btn-action primary" id="prcVoucherApplyBtn" style="flex:0 0 auto;width:auto;padding:10px 14px;font-size:12px;" onclick="window.applyPricingVoucher()">Terapkan</button>
+                        </div>
+                        <div id="prcVoucherActiveBanner" style="display:none;" class="prc-voucher-active">
+                            <span id="prcVoucherActiveText"></span>
+                            <button type="button" onclick="window.removePricingVoucher()" style="background:none;border:none;color:#ef4444;font-weight:900;font-size:11px;cursor:pointer;text-transform:uppercase;">Lepas</button>
+                        </div>
+                    </div>
+
+                    <div id="prcAdminNotice" style="display:none;margin-bottom:14px;padding:12px;border:2.5px solid #f59e0b;background:rgba(245,158,11,0.1);font-size:12px;font-weight:800;color:#f59e0b;">
+                        Akun dengan role ADMIN sudah memiliki akses penuh tidak terbatas dan tidak dapat membeli paket VIP.
+                    </div>
+
+                    <div class="section-title">Pilih Paket VIP</div>
+                    <div class="prc-grid" id="prcPlansGrid"></div>
+                </div>
+            </div>
+
+            <!-- Modal Checkout Paket VIP -->
+            <div class="prc-modal-backdrop" id="vipCheckoutModal">
+                <div class="prc-modal-card">
+                    <div class="prc-modal-hdr">
+                        <div class="prc-modal-ttl" id="chkModalTitle">Upgrade ke VIP</div>
+                        <button type="button" class="icon-btn" style="width:30px;height:30px;" onclick="window.closeVipCheckoutModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div style="font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px;">Kode Voucher Diskon</div>
+                    <div class="prc-voucher-row" style="margin-bottom:10px;">
+                        <input type="text" class="prc-voucher-inp" id="chkVoucherInput" placeholder="Masukkan kode (opsional)" maxlength="20" autocomplete="off">
+                        <button type="button" class="btn-action secondary" style="flex:0 0 auto;width:auto;padding:10px 12px;font-size:12px;" onclick="window.applyCheckoutVoucher()">Terapkan</button>
+                    </div>
+                    <div class="prc-summary-box">
+                        <div class="prc-sum-row"><span>Paket &amp; Durasi</span><span id="chkSumPlan" style="color:var(--text);font-weight:900;">-</span></div>
+                        <div class="prc-sum-row"><span>Harga Normal</span><span id="chkSumNormal">-</span></div>
+                        <div class="prc-sum-row" id="chkSumDiscRow" style="display:none;color:#22c55e;"><span>Diskon Voucher</span><span id="chkSumDisc">-</span></div>
+                        <div class="prc-sum-row total"><span>Total Bayar</span><span id="chkSumTotal" style="color:var(--primary);font-family:'Orbitron',sans-serif;">-</span></div>
+                    </div>
+                    <div style="font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px;">Metode Pembayaran</div>
+                    <div class="prc-pay-method">
+                        <div class="prc-plan-icon"><i class="fas fa-qrcode"></i></div>
+                        <div style="flex:1;">
+                            <div style="font-size:13px;font-weight:900;color:var(--text);">QRIS Instan Otomatis</div>
+                            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);">GoPay, DANA, OVO, ShopeePay, LinkAja &amp; m-Banking</div>
+                        </div>
+                        <i class="fas fa-check-circle" style="color:var(--primary);font-size:18px;"></i>
+                    </div>
+                    <button type="button" class="btn-action primary" id="chkPayBtn" style="width:100%;" onclick="window.createVipQrisOrder()">
+                        <i class="fas fa-qrcode"></i> Bayar dengan QRIS
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Pembayaran QRIS Dinamis 5 Menit -->
+            <div class="prc-modal-backdrop" id="vipQrisModal">
+                <div class="prc-modal-card" style="text-align:center;">
+                    <div class="prc-modal-hdr">
+                        <div style="text-align:left;">
+                            <div class="prc-modal-ttl">Hidz Store</div>
+                            <div style="font-size:10px;font-weight:700;color:var(--text-secondary);">NMID: ID1026609601806 &bull; QRIS Dinamis</div>
+                        </div>
+                        <button type="button" class="icon-btn" style="width:30px;height:30px;" onclick="window.closeVipQrisModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div style="font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;">Total Bayar</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:var(--primary);margin:2px 0;" id="qrisTotalPayable">Rp 0</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:4px;">ID Transaksi: <b id="qrisOrderIdTxt" style="color:var(--text);">-</b></div>
+                    <div class="prc-cd-pill"><i class="fas fa-RegClock fa-clock"></i> <span id="qrisCountdownTxt">05:00</span></div>
+                    <div class="prc-qris-box" id="qrisImgContainer">
+                        <img id="qrisCodeImg" src="" alt="QRIS Hidz Store">
+                        <div class="prc-qris-exp-mask">
+                            <i class="fas fa-ban" style="font-size:28px;margin-bottom:6px;"></i>
+                            <span>KEDALUWARSA</span>
+                            <span style="font-size:10px;font-family:'Space Grotesk',sans-serif;color:#fca5a5;margin-top:4px;font-weight:700;">Batas waktu 5 menit telah habis</span>
+                        </div>
+                    </div>
+                    <div style="font-size:11px;font-weight:700;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
+                        Scan kode QR menggunakan GoPay, DANA, OVO, ShopeePay, LinkAja, atau aplikasi m-banking berlogo QRIS.
+                    </div>
+                    <div id="qrisStatusFeedback" style="font-size:11.5px;font-weight:800;color:var(--primary);margin-bottom:10px;min-height:18px;">Menunggu pembayaran...</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <button type="button" class="btn-action primary" id="qrisCheckBtn" style="width:100%;padding:12px;" onclick="window.manualCheckVipOrder()">
+                            <i class="fas fa-sync-alt"></i> CEK TRANSAKSI
+                        </button>
+                        <button type="button" class="btn-action primary" id="qrisRecreateBtn" style="width:100%;padding:12px;display:none;" onclick="window.recreateExpiredVipOrder()">
+                            <i class="fas fa-redo"></i> Buat QRIS Baru
+                        </button>
+                        <button type="button" class="btn-action secondary" id="qrisCancelBtn" style="width:100%;padding:11px;" onclick="window.cancelActiveVipOrder()">
+                            Batalkan Pesanan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Halaman TRANSAKSI (Bukti Pembelian VIP & Unduh PNG) -->
+            <div class="ann-overlay" id="vipReceiptOverlay" style="z-index:340;">
+                <div class="ann-header">
+                    <button class="icon-btn" title="Kembali" onclick="window.closeVipReceipt()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <span class="ann-header-title">Bukti Transaksi</span>
+                    <div style="width:36px;"></div>
+                </div>
+                <div class="ann-body">
+                    <div class="prc-receipt-card" id="vipReceiptCardBody"></div>
+                    <button type="button" class="btn-action primary" style="width:100%;margin-bottom:10px;" onclick="window.downloadVipReceiptPng()">
+                        <i class="fas fa-download"></i> Unduh Bukti Transaksi (PNG)
+                    </button>
+                    <button type="button" class="btn-action secondary" style="width:100%;" onclick="window.closeVipReceipt()">
+                        Kembali ke Pricing
+                    </button>
+                </div>
+            </div>
+
+            <!-- Halaman Riwayat Transaksi Akun -->
+            <div class="ann-overlay" id="vipTxHistoryOverlay" style="z-index:330;">
+                <div class="ann-header">
+                    <button class="icon-btn" title="Kembali" onclick="window.closeVipTxHistory()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <span class="ann-header-title">Riwayat Transaksi</span>
+                    <div style="width:36px;"></div>
+                </div>
+                <div class="ann-body">
+                    <div id="vipTxHistoryList" class="vertical-list"></div>
                 </div>
             </div>
 
@@ -5561,51 +5761,7 @@
                 rebuildUIPreserveScroll();
             };
 
-            // ---- HALAMAN FAVORIT SAYA (overlay daftar lengkap, bukan cuma scroll horizontal) ----
-            function renderFavAllList() {
-                const wrap = document.getElementById('favAllList');
-                if (!wrap) return;
-                const favProjs = getFavorites()
-                    .map(n => projects.find(p => p.name === n))
-                    .filter(Boolean);
-                if (!favProjs.length) {
-                    wrap.innerHTML =
-                        '<div class="ann-empty"><i class="fas fa-star" style="font-size:22px;display:block;margin-bottom:10px;opacity:.35;"></i>Belum ada favorit.<br>Ketuk ikon bintang di project buat nyimpennya di sini.</div>';
-                    return;
-                }
-                let html = '';
-                favProjs.forEach(proj => {
-                    const projJson = JSON.stringify(proj).replace(/'/g, "&apos;");
-                    const safeNameJs = proj.name.replace(/'/g, "\\'");
-                    html +=
-                        '<div class="item-row" onclick=\'openDetail(' +
-                        projJson +
-                        ")'>" +
-                        '<img src="' +
-                        proj.img +
-                        '" onerror="this.onerror=null;this.src=\'https://via.placeholder.com/50\'">' +
-                        '<div class="item-info"><div class="item-name">' +
-                        proj.name +
-                        '</div><div class="item-desc">' +
-                        proj.desc +
-                        '</div></div>' +
-                        '<button class="fav-btn" onclick="event.stopPropagation(); window.toggleFavoriteInFavAll(\'' +
-                        safeNameJs +
-                        '\')" title="Hapus dari favorit"><i class="fas fa-star"></i></button></div>';
-                });
-                wrap.innerHTML = html;
-            }
-            window.toggleFavoriteInFavAll = name => {
-                toggleFavorite(name);
-                renderFavAllList();
-            };
-            window.openFavAll = () => {
-                renderFavAllList();
-                document.getElementById('favAllOverlay').classList.add('open');
-            };
-            window.closeFavAll = () => {
-                document.getElementById('favAllOverlay').classList.remove('open');
-            };
+            // ---- HALAMAN PRICING MENGGANTIKAN OVERLAY FAVORIT SAYA ----
 
             // ---- PENANDA PROJECT BELUM PERNAH DIBUKA (badge "Baru" di card) ----
             const SEEN_PROJ_KEY = 'hidz_seen_projects';
@@ -6019,7 +6175,7 @@
 
                 // Tombol Favorit — akses cepat ke halaman Favorit Saya, selalu ada di semua page
                 navHtml +=
-                    '<button class="nav-item" onclick="window.openFavAll()"><i class="fas fa-star"></i> <span>Favorit</span></button>';
+                    '<button class="nav-item" onclick="window.openPricingSheet()"><i class="fas fa-crown"></i> <span>Pricing</span></button>';
 
                 // Tombol Konseling — chat langsung dengan admin, titik merah muncul kalau ada balasan baru
                 navHtml +=
@@ -7212,19 +7368,24 @@
                dibalas, disimpan ke sesi lokal, dan timer logout dipasang ulang
                dari angka yang baru. */
             function _syncSessionDuration(res) {
-                if (typeof res.expiresAt !== 'number') return;
                 var cur = getSession();
                 if (!cur || !cur.username || cur.role === 'admin') return;
-                var sameExpiry = (cur.expiresAt === res.expiresAt);
-                var sameLabel  = (!res.durationLabel || cur.durationLabel === res.durationLabel);
-                if (sameExpiry && sameLabel) return;
-
-                cur.expiresAt = res.expiresAt;
-                if (res.durationLabel) cur.durationLabel = res.durationLabel;
+                var nextRole = res.role || cur.role || 'user';
+                var nextExp  = (typeof res.expiresAt === 'number') ? res.expiresAt : cur.expiresAt;
+                var nextLbl  = res.durationLabel || cur.durationLabel;
+                var roleChanged = (cur.role !== nextRole);
+                if (!roleChanged && cur.expiresAt === nextExp && cur.durationLabel === nextLbl) return;
+                cur.role = nextRole;
+                cur.expiresAt = nextExp;
+                if (typeof res.durationMs === 'number') cur.durationMs = res.durationMs;
+                if (nextLbl) cur.durationLabel = nextLbl;
                 try { localStorage.setItem(SESS_KEY, JSON.stringify(cur)); } catch (e) { return; }
-
-                setExpiryTimer(cur.expiresAt);
+                if (cur.expiresAt) setExpiryTimer(cur.expiresAt);
                 _refreshProfileDuration(cur);
+                if (roleChanged) {
+                    try { rebuildUIPreserveScroll(); buildHamburgerMenu(); } catch (e) {}
+                }
+                if (typeof window._prcRefreshHeaderLive === 'function') window._prcRefreshHeaderLive();
             }
 
             /* Perbarui kartu "Info Akun" yang sedang tampil tanpa render ulang

@@ -1,7 +1,35 @@
 {
   "rewrites": [
     {
-      "source": "/((?!manifest\\.json|sw\\.js).*)",
+      "source": "/api/vip/plans",
+      "destination": "/api/check-session?vipAction=plans"
+    },
+    {
+      "source": "/api/vip/voucher-check",
+      "destination": "/api/check-session?vipAction=voucher-check"
+    },
+    {
+      "source": "/api/vip/order-create",
+      "destination": "/api/check-session?vipAction=order-create"
+    },
+    {
+      "source": "/api/vip/order-status",
+      "destination": "/api/check-session?vipAction=order-status"
+    },
+    {
+      "source": "/api/vip/order-cancel",
+      "destination": "/api/check-session?vipAction=order-cancel"
+    },
+    {
+      "source": "/api/vip/transactions",
+      "destination": "/api/check-session?vipAction=transactions"
+    },
+    {
+      "source": "/api/vip/webhook",
+      "destination": "/api/check-session?vipAction=webhook"
+    },
+    {
+      "source": "/((?!api/|manifest\\.json|sw\\.js).*)",
       "destination": "/index.html"
     }
   ],
