@@ -293,6 +293,459 @@
                 #hzGate .hzg-spin span { animation: none; opacity: 0.7; }
                 #hzGate .hzg-done path { animation: none; stroke-dashoffset: 0; }
             }
+        
+            /* HIDZ STORE QRIS POSTER THEME */
+            #vipQrisModal .prc-modal.hz-qris-poster {
+                max-width: 430px;
+                padding: 14px 12px 16px;
+                background:
+                    radial-gradient(circle at 18% 12%, rgba(225, 29, 72, 0.28) 0%, transparent 42%),
+                    radial-gradient(circle at 82% 15%, rgba(0, 229, 255, 0.25) 0%, transparent 45%),
+                    linear-gradient(180deg, #060b1e 0%, #0b173d 48%, #050919 100%);
+                border: 2px solid #00e5ff;
+                box-shadow: 0 0 24px rgba(0, 229, 255, 0.35), inset 0 0 18px rgba(0, 229, 255, 0.12);
+                color: #ffffff;
+                position: relative;
+                overflow-x: hidden;
+            }
+            .hz-qp-top {
+                text-align: center;
+                position: relative;
+                padding: 2px 6px 8px;
+            }
+            .hz-qp-close {
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 32px;
+                height: 32px;
+                background: rgba(15, 23, 42, 0.85);
+                border: 1.5px solid #00e5ff;
+                color: #ffffff;
+                font-weight: 900;
+                font-size: 14px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 6px;
+                z-index: 5;
+            }
+            .hz-qp-brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                margin-bottom: 2px;
+            }
+            .hz-qp-brand-logo {
+                width: 26px;
+                height: 26px;
+                background: linear-gradient(135deg, #38bdf8, #1d4ed8);
+                border: 1.5px solid #e0f2fe;
+                border-radius: 5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: 'Orbitron', sans-serif;
+                font-weight: 900;
+                font-size: 15px;
+                color: #fff;
+                transform: skewX(-10deg);
+                box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+            }
+            .hz-qp-brand-txt {
+                text-align: left;
+                line-height: 1.05;
+            }
+            .hz-qp-brand-txt b {
+                display: block;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 13px;
+                font-weight: 900;
+                letter-spacing: 1.5px;
+                color: #ffffff;
+            }
+            .hz-qp-brand-txt span {
+                font-size: 7.5px;
+                font-weight: 800;
+                letter-spacing: 1.6px;
+                color: #93c5fd;
+            }
+            .hz-qp-title-main {
+                font-family: 'Orbitron', sans-serif;
+                font-size: 30px;
+                font-weight: 900;
+                letter-spacing: 1.5px;
+                line-height: 1;
+                margin: 4px 0 2px;
+                color: #f8fafc;
+                text-transform: uppercase;
+                text-shadow: 0 2px 0 #1e3a8a, 0 4px 12px rgba(225, 29, 72, 0.65);
+            }
+            .hz-qp-title-sub {
+                display: inline-block;
+                background: linear-gradient(90deg, transparent 0%, #dc2626 15%, #ef4444 50%, #dc2626 85%, transparent 100%);
+                padding: 3px 22px;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 16px;
+                font-weight: 900;
+                font-style: italic;
+                letter-spacing: 1.5px;
+                color: #ffffff;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.65);
+                transform: skewX(-8deg);
+                margin-bottom: 5px;
+            }
+            .hz-qp-Ribbon {
+                font-size: 8.5px;
+                font-weight: 800;
+                letter-spacing: 2px;
+                color: #e2e8f0;
+                text-transform: uppercase;
+                margin-bottom: 8px;
+            }
+            .hz-qp-orderbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                background: rgba(15, 23, 42, 0.82);
+                border: 1.5px solid rgba(0, 229, 255, 0.55);
+                border-radius: 8px;
+                padding: 7px 10px;
+                margin-bottom: 10px;
+            }
+            .hz-qp-orderbar-left {
+                text-align: left;
+                min-width: 0;
+            }
+            .hz-qp-amount {
+                font-family: 'Orbitron', sans-serif;
+                font-size: 17px;
+                font-weight: 900;
+                color: #38bdf8;
+                line-height: 1.1;
+            }
+            .hz-qp-ordid {
+                font-size: 9.5px;
+                font-weight: 700;
+                color: #cbd5e1;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .hz-qp-timer {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+                background: #ffe94d;
+                color: #0a0a0a;
+                border: 2px solid #0a0a0a;
+                border-radius: 6px;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 12px;
+                font-weight: 900;
+                flex-shrink: 0;
+            }
+            .hz-qp-card-outer {
+                padding: 5px;
+                border-radius: 14px;
+                background: linear-gradient(180deg, #00f0ff 0%, #0284c7 50%, #e11d48 100%);
+                box-shadow: 0 0 18px rgba(0, 240, 255, 0.4);
+                margin-bottom: 10px;
+            }
+            .hz-qp-card {
+                background: #ffffff;
+                color: #0f172a;
+                border-radius: 10px;
+                padding: 12px 12px 10px;
+                position: relative;
+                overflow: hidden;
+            }
+            .hz-qp-card::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 30%;
+                width: 0;
+                height: 0;
+                border-top: 36px solid transparent;
+                border-bottom: 36px solid transparent;
+                border-left: 34px solid #ef4444;
+                pointer-events: none;
+            }
+            .hz-qp-card::after {
+                content: '';
+                position: absolute;
+                right: 0;
+                bottom: 0;
+                width: 0;
+                height: 0;
+                border-left: 95px solid transparent;
+                border-bottom: 95px solid #ef4444;
+                pointer-events: none;
+                z-index: 0;
+            }
+            .hz-qp-card-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 6px;
+                position: relative;
+                z-index: 1;
+            }
+            .hz-qp-qris-logo {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .hz-qp-qris-box {
+                font-family: 'Orbitron', sans-serif;
+                font-size: 17px;
+                font-weight: 900;
+                letter-spacing: 0.5px;
+                color: #0f172a;
+                border-left: 3px solid #0f172a;
+                border-bottom: 3px solid #0f172a;
+                padding: 0 3px 1px 4px;
+                line-height: 1;
+            }
+            .hz-qp-qris-sub {
+                font-size: 7px;
+                font-weight: 800;
+                line-height: 1.15;
+                color: #1e293b;
+                text-align: left;
+            }
+            .hz-qp-gpn {
+                text-align: right;
+                line-height: 1;
+            }
+            .hz-qp-gpn b {
+                display: block;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 13px;
+                font-weight: 900;
+                color: #1d4ed8;
+            }
+            .hz-qp-gpn span {
+                font-size: 7px;
+                font-weight: 800;
+                color: #dc2626;
+                letter-spacing: 0.5px;
+            }
+            .hz-qp-merchant {
+                text-align: center;
+                position: relative;
+                z-index: 1;
+                margin-bottom: 8px;
+            }
+            .hz-qp-merchant-name {
+                font-size: 15px;
+                font-weight: 900;
+                color: #0f172a;
+                line-height: 1.2;
+            }
+            .hz-qp-merchant-nmid {
+                font-size: 10.5px;
+                font-weight: 700;
+                color: #334155;
+                letter-spacing: 0.3px;
+                margin-top: 1px;
+            }
+            .hz-qp-merchant-a01 {
+                font-size: 11px;
+                font-weight: 800;
+                color: #0f172a;
+                margin-top: 1px;
+            }
+            /* FULL QR CODE BOX */
+            .hz-qp-qrbox {
+                position: relative;
+                z-index: 1;
+                width: 248px;
+                height: 248px;
+                max-width: 100%;
+                margin: 0 auto 8px;
+                background: #ffffff;
+                border: 2.5px solid #0f172a;
+                border-radius: 6px;
+                padding: 5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+            }
+            .hz-qp-qrbox img {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: fill !important;
+                display: block;
+                image-rendering: -moz-crisp-edges;
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+            }
+            .hz-qp-qrbox img.is-midtrans-sheet {
+                object-fit: cover !important;
+                transform: scale(1.76);
+                transform-origin: 50% 51.5%;
+            }
+            .hz-qp-qrbox.expired img {
+                filter: blur(5px) grayscale(1);
+                opacity: 0.35;
+            }
+            .hz-qp-qrbox.expired::after {
+                content: 'QRIS KEDALUWARSA';
+                position: absolute;
+                inset: auto 10px;
+                background: #ef4444;
+                color: #ffffff;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 11px;
+                font-weight: 900;
+                padding: 7px 10px;
+                border: 2px solid #0a0a0a;
+                text-align: center;
+                z-index: 3;
+            }
+            .hz-qp-card-foot {
+                text-align: center;
+                position: relative;
+                z-index: 1;
+                color: #1e293b;
+            }
+            .hz-qp-card-foot-1 {
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: 0.6px;
+                margin-bottom: 2px;
+            }
+            .hz-qp-card-foot-2 {
+                font-size: 8.5px;
+                font-weight: 600;
+                color: #475569;
+                margin-bottom: 6px;
+            }
+            .hz-qp-card-meta {
+                display: flex;
+                align-items: flex-end;
+                justify-content: space-between;
+                font-size: 7.5px;
+                font-weight: 700;
+                color: #334155;
+                text-align: left;
+            }
+            .hz-qp-card-meta-right {
+                color: #ffffff;
+                text-align: right;
+                font-weight: 800;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            }
+            .hz-qp-hud {
+                background: rgba(9, 18, 44, 0.9);
+                border: 1.5px solid #00e5ff;
+                border-radius: 10px;
+                padding: 8px 10px;
+                margin-bottom: 8px;
+                display: grid;
+                grid-template-columns: 1.05fr 1fr;
+                gap: 8px;
+                align-items: center;
+            }
+            .hz-qp-wa-box {
+                text-align: left;
+                border-right: 1px solid rgba(0, 229, 255, 0.3);
+                padding-right: 6px;
+            }
+            .hz-qp-wa-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 5px;
+            }
+            .hz-qp-wa-icon {
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                background: #22c55e;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+            .hz-qp-wa-lbl {
+                font-size: 8px;
+                font-weight: 700;
+                color: #93c5fd;
+                line-height: 1.1;
+            }
+            .hz-qp-wa-num {
+                font-family: 'Orbitron', sans-serif;
+                font-size: 10.5px;
+                font-weight: 900;
+                color: #ffffff;
+                letter-spacing: 0.3px;
+            }
+            .hz-qp-link-pill {
+                background: rgba(2, 132, 199, 0.25);
+                border: 1px solid #00e5ff;
+                border-radius: 5px;
+                padding: 3px 6px;
+                font-size: 8px;
+                font-weight: 800;
+                color: #e0f2fe;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .hz-qp-pay-title {
+                font-size: 7.5px;
+                font-weight: 900;
+                letter-spacing: 0.8px;
+                color: #38bdf8;
+                text-align: center;
+                margin-bottom: 5px;
+                text-transform: uppercase;
+            }
+            .hz-qp-pay-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 3px;
+            }
+            .hz-qp-pay-item {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(148, 163, 184, 0.35);
+                border-radius: 4px;
+                padding: 3px 2px;
+                font-size: 7px;
+                font-weight: 800;
+                color: #f8fafc;
+                text-align: center;
+                white-space: nowrap;
+            }
+            .hz-qp-trustbar {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 4px;
+                background: rgba(15, 23, 42, 0.85);
+                border: 1px solid rgba(0, 229, 255, 0.4);
+                border-radius: 7px;
+                padding: 5px 4px;
+                margin-bottom: 8px;
+                font-size: 7.5px;
+                font-weight: 800;
+                color: #e2e8f0;
+                text-align: center;
+            }
+            .hz-qp-trustbar div i {
+                color: #38bdf8;
+                margin-right: 2px;
+            }
+
         </style>
         <script>
             /* Halaman langsung dikunci begitu HTML mulai dibaca, sebelum apa pun
@@ -10146,10 +10599,41 @@
                 document.getElementById('qrisOrderIdTxt').textContent = order.orderId;
                 var img = document.getElementById('qrisCodeImg');
                 if (img) {
-                    var fbQr = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(order.qrString || order.orderId);
-                    img.src = order.qrImageUrl || fbQr; img.onerror = function () { img.onerror = null; img.src = fbQr; }; img.style.cursor = "pointer"; img.onclick = function () { var u = order.qrImageUrl || img.src || ""; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(u).then(function () { showHzToast("URL QRIS berhasil disalin!"); }); } else { var ta = document.createElement("textarea"); ta.value = u; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); showHzToast("URL QRIS berhasil disalin!"); } };
+                    img.className = '';
+                    var fullQrFromMidtransString = order.qrString
+                        ? ('https://api.qrserver.com/v1/create-qr-code/?size=460x460&margin=0&ecc=M&data=' + encodeURIComponent(order.qrString))
+                        : '';
+                    if (fullQrFromMidtransString) {
+                        img.src = fullQrFromMidtransString;
+                        img.onerror = function () {
+                            img.onerror = null;
+                            if (order.qrImageUrl) {
+                                img.className = 'is-midtrans-sheet';
+                                img.src = order.qrImageUrl;
+                            }
+                        };
+                    } else if (order.qrImageUrl) {
+                        img.className = 'is-midtrans-sheet';
+                        img.src = order.qrImageUrl;
+                    }
+                    img.style.cursor = 'pointer';
+                    img.onclick = function () {
+                        var u = order.qrImageUrl || order.qrString || img.src || '';
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(u).then(function () { showHzToast('URL QRIS berhasil disalin!'); });
+                        } else {
+                            var ta = document.createElement('textarea');
+                            ta.value = u;
+                            document.body.appendChild(ta);
+                            ta.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(ta);
+                            showHzToast('URL QRIS berhasil disalin!');
+                        }
+                    };
                 }
-                updateQrisModalStateUI(); startQrisTimers();
+                updateQrisModalStateUI();
+                startQrisTimers();
             }
             function updateQrisModalStateUI() {
                 if (!_activeOrder) return;
@@ -10161,7 +10645,7 @@
                     notifyOnce(_activeOrder.orderId, 'expired', 'Waktu pembayaran QRIS habis');
                 } else {
                     box.classList.remove('expired'); chk.style.display = 'flex'; rec.style.display = 'none'; can.style.display = 'flex';
-                    fb.style.color = 'var(--primary)'; fb.textContent = 'Menunggu pembayaran QRIS...';
+                    fb.style.color = '#38bdf8'; fb.textContent = 'Menunggu pembayaran QRIS...';
                 }
             }
             function stopQrisTimers() {
