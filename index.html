@@ -10060,13 +10060,12 @@
                 var grid = document.getElementById('prcPlansGrid'); if (!grid) return;
                 var isAdmin = (getSess().role === 'admin'), html = '';
                 _plans.forEach(function (p) {
-                    var hasV = !!(_appliedVoucher && _appliedVoucher.planId === p.id), fp = hasV ? _appliedVoucher.finalPrice : p.price, pd = Math.round(fp / (p.days || 1));
+                    var hasV = !!(_appliedVoucher && _appliedVoucher.planId === p.id), fp = hasV ? _appliedVoucher.finalPrice : p.price;
                     html += '<div class="prc-plan-card' + (hasV ? ' has-disc' : '') + '"><div>' +
                         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div class="prc-plan-icon"><i class="fas fa-gem"></i></div>' +
                         (hasV ? '<span class="card-new-badge" style="position:static;background:#22c55e;color:#fff;">-' + esc(_appliedVoucher.percent) + '%</span>' : '') + '</div>' +
                         '<div class="prc-plan-name">' + esc(p.label) + '</div><div class="prc-plan-desc">Masa aktif ' + esc(p.days) + ' hari penuh</div><div style="margin-top:8px;">' +
-                        (hasV ? '<div class="prc-price-old">' + fmtRp(p.price) + '</div>' : '') + '<div class="prc-price-now">' + fmtRp(fp) + '</div>' +
-                        '<div style="font-size:10px;font-weight:700;color:var(--text-secondary);">\u2248 ' + fmtRp(pd) + ' / hari</div></div></div>' +
+                        (hasV ? '<div class="prc-price-old">' + fmtRp(p.price) + '</div>' : '') + '<div class="prc-price-now">' + fmtRp(fp) + '</div></div></div>' +
                         '<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;" onclick="window.selectVipPlan(\'' + p.id + '\')"') + '>' +
                         (isAdmin ? 'Khusus User/VIP' : 'Pilih Paket') + '</button></div>';
                 });
