@@ -4173,316 +4173,7 @@
             }
         })();
     <\/script>
-        <script id="hidzVipPricingScript">
-        (function () {
-            'use strict';
-            var DEFAULT_PLANS = [
-                { id: '1d',  label: '1 Day',   days: 1,   price: 3000,   durationLabel: '1 HARI' },
-                { id: '3d',  label: '3 Day',   days: 3,   price: 5000,   durationLabel: '3 HARI' },
-                { id: '7d',  label: '7 Day',   days: 7,   price: 10000,  durationLabel: '7 HARI' },
-                { id: '14d', label: '14 Day',  days: 14,  price: 15000,  durationLabel: '14 HARI' },
-                { id: '1m',  label: '1 Month', days: 30,  price: 20000,  durationLabel: '1 BULAN' },
-                { id: '3m',  label: '3 Month', days: 90,  price: 30000,  durationLabel: '3 BULAN' },
-                { id: '5m',  label: '5 Month', days: 150, price: 50000,  durationLabel: '5 BULAN' },
-                { id: '1y',  label: '1 Year',  days: 365, price: 100000, durationLabel: '1 TAHUN' }
-            ];
-            var _plans = DEFAULT_PLANS.slice(), _appliedVoucher = null, _selectedPlan = null;
-            var _activeOrder = null, _currentReceipt = null, _txHistoryCache = [];
-            var _serverTimeOffset = 0, _voucherPollTimer = null, _qrisPollTimer = null, _qrisCdTimer = null, _notified = {};
-
-            function getSess() { try { return JSON.parse(localStorage.getItem('hidz_session') || '{}'); } catch (e) { return {}; } }
-            function serverNow() { return Date.now() + _serverTimeOffset; }
-            function syncOffset(ts) { if (typeof ts === 'number' && ts > 0) _serverTimeOffset = ts - Date.now(); }
-            function fmtRp(n) { return 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID'); }
-            function fmtWib(ts) {
-                if (!ts) return '-';
-                var d = new Date(Number(ts)), z = { timeZone: 'Asia/Jakarta' };
-                return d.toLocaleDateString('id-ID', Object.assign({ day: '2-digit', month: 'short', year: 'numeric' }, z)) + ', ' +
-                    d.toLocaleTimeString('id-ID', Object.assign({ hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }, z)) + ' WIB';
-            }
-            function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-            function notifyOnce(id, ev, msg) { var k = (id || 'g') + ':' + ev; if (_notified[k]) return; _notified[k] = true; if (typeof showHzToast === 'function') showHzToast(msg); }
-
-            function vipApi(endpoint, payload) {
-                var s = getSess(), body = Object.assign({ id: s.id || '', username: s.username || '', password: s.password || '', role: s.role || '' }, payload || {});
-                var call = function (tk) {
-                    var h = { 'Content-Type': 'application/json' }; if (tk) h.Authorization = 'Bearer ' + tk;
-                    return fetch(endpoint, { method: 'POST', headers: h, body: JSON.stringify(body) }).then(function (r) { return r.json(); }).then(function (res) { if (res && res.serverNow) syncOffset(res.serverNow); return res; });
-                };
-                try { if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return firebase.auth().currentUser.getIdToken(false).then(call).catch(function () { return call(''); }); } catch (e) {}
-                return call('');
-            }
-
-            window._prcRefreshHeaderLive = function () {
-                var s = getSess(), uEl = document.getElementById('prcAccUsername'), rEl = document.getElementById('prcAccRoleBadge'), lEl = document.getElementById('prcAccRemainLive'), adm = document.getElementById('prcAdminNotice');
-                if (uEl) uEl.textContent = s.username || '-';
-                var role = (s.role || 'user').toLowerCase();
-                if (rEl) { rEl.textContent = role.toUpperCase(); rEl.className = 'prc-role-badge' + (role === 'vip' ? ' is-vip' : ''); }
-                if (adm) adm.style.display = (role === 'admin') ? 'block' : 'none';
-                if (!lEl) return;
-                if (!s.expiresAt) { lEl.textContent = 'UNLIMITED'; return; }
-                var diff = s.expiresAt - serverNow();
-                if (diff <= 0) { lEl.textContent = 'EXPIRED'; return; }
-                var d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000), m = Math.floor((diff % 3600000) / 60000), sc = Math.floor((diff % 60000) / 1000);
-                lEl.textContent = (d > 0 ? d + 'h ' : '') + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(sc).padStart(2, '0');
-            };
-            setInterval(function () { var ov = document.getElementById('pricingOverlay'); if (ov && ov.classList.contains('open')) window._prcRefreshHeaderLive(); }, 1000);
-
-            function renderPlansGrid() {
-                var grid = document.getElementById('prcPlansGrid'); if (!grid) return;
-                var isAdmin = (getSess().role === 'admin'), html = '';
-                _plans.forEach(function (p) {
-                    var hasV = !!(_appliedVoucher && _appliedVoucher.planId === p.id), fp = hasV ? _appliedVoucher.finalPrice : p.price, pd = Math.round(fp / (p.days || 1));
-                    html += '<div class="prc-plan-card' + (hasV ? ' has-disc' : '') + '"><div>' +
-                        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div class="prc-plan-icon"><i class="fas fa-gem"></i></div>' +
-                        (hasV ? '<span class="card-new-badge" style="position:static;background:#22c55e;color:#fff;">-' + esc(_appliedVoucher.percent) + '%</span>' : '') + '</div>' +
-                        '<div class="prc-plan-name">' + esc(p.label) + '</div><div class="prc-plan-desc">Masa aktif ' + esc(p.days) + ' hari penuh</div><div style="margin-top:8px;">' +
-                        (hasV ? '<div class="prc-price-old">' + fmtRp(p.price) + '</div>' : '') + '<div class="prc-price-now">' + fmtRp(fp) + '</div>' +
-                        '<div style="font-size:10px;font-weight:700;color:var(--text-secondary);">\u2248 ' + fmtRp(pd) + ' / hari</div></div></div>' +
-                        '<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;" onclick="window.selectVipPlan(\'' + p.id + '\')"') + '>' +
-                        (isAdmin ? 'Khusus User/VIP' : 'Pilih Paket') + '</button></div>';
-                });
-                grid.innerHTML = html;
-            }
-            function renderVoucherBanner() {
-                var b = document.getElementById('prcVoucherActiveBanner'), t = document.getElementById('prcVoucherActiveText');
-                if (!b || !t) return;
-                if (!_appliedVoucher) { b.style.display = 'none'; return; }
-                b.style.display = 'flex';
-                t.textContent = 'Voucher ' + _appliedVoucher.code + ' aktif (' + _appliedVoucher.planLabel + ' jadi ' + fmtRp(_appliedVoucher.finalPrice) + ')';
-            }
-            function startVoucherPolling() {
-                if (_voucherPollTimer) clearInterval(_voucherPollTimer);
-                _voucherPollTimer = setInterval(function () {
-                    var ov = document.getElementById('pricingOverlay');
-                    if (!ov || !ov.classList.contains('open') || !_appliedVoucher || document.visibilityState === 'hidden') return;
-                    vipApi('/api/vip/voucher-check', { code: _appliedVoucher.code, planId: _appliedVoucher.planId, silentPoll: true }).then(function (res) {
-                        if (!res || !res.ok || !res.voucher) {
-                            _appliedVoucher = null; renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI();
-                            showHzToast('Voucher tidak lagi berlaku, harga kembali normal.');
-                        } else {
-                            _appliedVoucher = res.voucher; renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI();
-                        }
-                    }).catch(function () {});
-                }, 10000);
-            }
-            window.openPricingSheet = function () {
-                var s = getSess(); if (!s || !s.username) { showHzToast('Silakan login terlebih dahulu'); return; }
-                var ov = document.getElementById('pricingOverlay'); if (ov) ov.classList.add('open');
-                try { history.pushState({ hzModal: 'pricing' }, ''); } catch (e) {}
-                window._prcRefreshHeaderLive(); renderPlansGrid(); startVoucherPolling();
-                vipApi('/api/vip/plans', {}).then(function (res) { if (res && res.ok && Array.isArray(res.plans)) { _plans = res.plans; renderPlansGrid(); } }).catch(function () {});
-            };
-            window.closePricingSheet = function () {
-                var ov = document.getElementById('pricingOverlay'); if (ov) ov.classList.remove('open');
-                if (_voucherPollTimer) { clearInterval(_voucherPollTimer); _voucherPollTimer = null; }
-            };
-            window.togglePricingVoucherBox = function () { var b = document.getElementById('prcVoucherBox'); if (b) b.classList.toggle('open'); };
-            window.applyPricingVoucher = function () {
-                var inp = document.getElementById('prcVoucherInput'), code = inp ? inp.value.trim().toUpperCase() : '';
-                if (!code) { showHzToast('Masukkan kode voucher terlebih dahulu'); return; }
-                var btn = document.getElementById('prcVoucherApplyBtn'); if (btn) { btn.disabled = true; btn.textContent = '...'; }
-                vipApi('/api/vip/voucher-check', { code: code }).then(function (res) {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Terapkan'; }
-                    if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Kode voucher tidak valid'); return; }
-                    _appliedVoucher = res.voucher; renderVoucherBanner(); renderPlansGrid();
-                    showHzToast('Voucher ' + _appliedVoucher.code + ' diterapkan untuk paket ' + _appliedVoucher.planLabel);
-                }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Terapkan'; } showHzToast('Gagal memeriksa voucher'); });
-            };
-            window.removePricingVoucher = function () {
-                _appliedVoucher = null;
-                ['prcVoucherInput', 'chkVoucherInput'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
-                renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI(); showHzToast('Voucher dilepas');
-            };
-            function updateCheckoutSummaryUI() {
-                if (!_selectedPlan) return;
-                var hasV = !!(_appliedVoucher && _appliedVoucher.planId === _selectedPlan.id), fp = hasV ? _appliedVoucher.finalPrice : _selectedPlan.price;
-                document.getElementById('chkModalTitle').textContent = 'Upgrade ke VIP (' + _selectedPlan.label + ' \u2022 ' + fmtRp(fp) + ')';
-                document.getElementById('chkSumPlan').textContent = 'VIP \u2022 ' + _selectedPlan.label + ' (' + _selectedPlan.days + ' Hari)';
-                document.getElementById('chkSumNormal').textContent = fmtRp(_selectedPlan.price);
-                var dRow = document.getElementById('chkSumDiscRow'), dEl = document.getElementById('chkSumDisc');
-                if (hasV) { dRow.style.display = 'flex'; dEl.textContent = '- ' + fmtRp(_appliedVoucher.discountAmount) + ' (' + _appliedVoucher.code + ')'; }
-                else { dRow.style.display = 'none'; }
-                document.getElementById('chkSumTotal').textContent = fmtRp(fp);
-                document.getElementById('chkVoucherInput').value = hasV ? _appliedVoucher.code : '';
-            }
-            window.selectVipPlan = function (planId) {
-                if (getSess().role === 'admin') { showHzToast('Role admin tidak dapat membeli paket VIP'); return; }
-                var p = _plans.filter(function (x) { return x.id === planId; })[0]; if (!p) return;
-                _selectedPlan = p;
-                vipApi('/api/vip/order-status', { orderId: '' }).then(function (res) {
-                    if (res && res.ok && res.order && res.order.status === 'PENDING' && serverNow() < Number(res.order.expiresAt)) {
-                        openQrisModalWithOrder(res.order); showHzToast('Melanjutkan transaksi QRIS yang masih aktif'); return;
-                    }
-                    updateCheckoutSummaryUI(); document.getElementById('vipCheckoutModal').classList.add('open');
-                }).catch(function () { updateCheckoutSummaryUI(); document.getElementById('vipCheckoutModal').classList.add('open'); });
-            };
-            window.closeVipCheckoutModal = function () { document.getElementById('vipCheckoutModal').classList.remove('open'); };
-            window.applyCheckoutVoucher = function () {
-                if (!_selectedPlan) return;
-                var code = (document.getElementById('chkVoucherInput').value || '').trim().toUpperCase();
-                if (!code) { window.removePricingVoucher(); return; }
-                vipApi('/api/vip/voucher-check', { code: code, planId: _selectedPlan.id }).then(function (res) {
-                    if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Voucher tidak valid'); return; }
-                    _appliedVoucher = res.voucher; document.getElementById('prcVoucherInput').value = _appliedVoucher.code;
-                    renderVoucherBanner(); renderPlansGrid(); updateCheckoutSummaryUI(); showHzToast('Voucher diterapkan!');
-                }).catch(function () { showHzToast('Gagal memvalidasi voucher'); });
-            };
-            window.createVipQrisOrder = function () {
-                if (!_selectedPlan) return;
-                var btn = document.getElementById('chkPayBtn');
-                if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Membuat QRIS...'; }
-                var vCode = (_appliedVoucher && _appliedVoucher.planId === _selectedPlan.id) ? _appliedVoucher.code : '';
-                vipApi('/api/vip/order-create', { planId: _selectedPlan.id, voucherCode: vCode }).then(function (res) {
-                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-qrcode"></i> Bayar dengan QRIS'; }
-                    if (!res || !res.ok || !res.order) {
-                        if (res && res.reason === 'voucher_invalid') { _appliedVoucher = null; renderVoucherBanner(); renderPlansGrid(); updateCheckoutSummaryUI(); }
-                        showHzToast((res && res.message) || 'Gagal membuat pesanan QRIS'); return;
-                    }
-                    window.closeVipCheckoutModal(); openQrisModalWithOrder(res.order);
-                }).catch(function () {
-                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-qrcode"></i> Bayar dengan QRIS'; }
-                    showHzToast('Gagal terhubung ke server pembayaran');
-                });
-            };
-            function openQrisModalWithOrder(order) {
-                _activeOrder = order;
-                document.getElementById('vipQrisModal').classList.add('open');
-                document.getElementById('qrisTotalPayable').textContent = fmtRp(order.totalAmount);
-                document.getElementById('qrisOrderIdTxt').textContent = order.orderId;
-                var img = document.getElementById('qrisCodeImg');
-                if (img) {
-                    var fbQr = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(order.qrString || order.orderId);
-                    img.src = order.qrImageUrl || fbQr; img.onerror = function () { img.onerror = null; img.src = fbQr; };
-                }
-                updateQrisModalStateUI(); startQrisTimers();
-            }
-            function updateQrisModalStateUI() {
-                if (!_activeOrder) return;
-                var box = document.getElementById('qrisImgContainer'), chk = document.getElementById('qrisCheckBtn'), rec = document.getElementById('qrisRecreateBtn'), can = document.getElementById('qrisCancelBtn'), fb = document.getElementById('qrisStatusFeedback');
-                if ((_activeOrder.status === 'EXPIRED' || serverNow() >= Number(_activeOrder.expiresAt)) && _activeOrder.status === 'PENDING') _activeOrder.status = 'EXPIRED';
-                if (_activeOrder.status === 'EXPIRED') {
-                    box.classList.add('expired'); chk.style.display = 'none'; rec.style.display = 'flex'; can.style.display = 'none';
-                    fb.style.color = '#ef4444'; fb.textContent = 'QRIS telah kedaluwarsa. Silakan buat QRIS baru.';
-                    notifyOnce(_activeOrder.orderId, 'expired', 'Waktu pembayaran QRIS habis');
-                } else {
-                    box.classList.remove('expired'); chk.style.display = 'flex'; rec.style.display = 'none'; can.style.display = 'flex';
-                    fb.style.color = 'var(--primary)'; fb.textContent = 'Menunggu pembayaran QRIS...';
-                }
-            }
-            function stopQrisTimers() {
-                if (_qrisCdTimer) { clearInterval(_qrisCdTimer); _qrisCdTimer = null; }
-                if (_qrisPollTimer) { clearInterval(_qrisPollTimer); _qrisPollTimer = null; }
-            }
-            function startQrisTimers() {
-                stopQrisTimers();
-                var tick = function () {
-                    if (!_activeOrder) return;
-                    var rem = Math.max(0, Number(_activeOrder.expiresAt) - serverNow());
-                    document.getElementById('qrisCountdownTxt').textContent = String(Math.floor(rem / 60000)).padStart(2, '0') + ':' + String(Math.floor((rem % 60000) / 1000)).padStart(2, '0');
-                    if (rem <= 0 && _activeOrder.status === 'PENDING') { _activeOrder.status = 'EXPIRED'; updateQrisModalStateUI(); stopQrisTimers(); }
-                };
-                tick(); _qrisCdTimer = setInterval(tick, 1000);
-                _qrisPollTimer = setInterval(function () {
-                    var m = document.getElementById('vipQrisModal');
-                    if (m && m.classList.contains('open') && _activeOrder && _activeOrder.status === 'PENDING' && document.visibilityState !== 'hidden') pollOrderStatus(false);
-                }, 3000);
-            }
-            function pollOrderStatus(isManual) {
-                if (!_activeOrder) return;
-                var chk = document.getElementById('qrisCheckBtn');
-                if (isManual && chk) { chk.disabled = true; chk.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa...'; }
-                vipApi('/api/vip/order-status', { orderId: _activeOrder.orderId }).then(function (res) {
-                    if (isManual && chk) { chk.disabled = false; chk.innerHTML = '<i class="fas fa-sync-alt"></i> CEK TRANSAKSI'; }
-                    if (!res || !res.ok || !res.order) return;
-                    _activeOrder = res.order;
-                    if (_activeOrder.status === 'SUCCESS') {
-                        stopQrisTimers(); window.closeVipQrisModal();
-                        notifyOnce(_activeOrder.orderId, 'success', 'Pembayaran berhasil! Akun kamu sekarang VIP.');
-                        var cur = getSess(); cur.role = 'vip';
-                        if (_activeOrder.afterSnapshot && _activeOrder.afterSnapshot.expiresAt) cur.expiresAt = _activeOrder.afterSnapshot.expiresAt;
-                        if (_activeOrder.afterSnapshot && _activeOrder.afterSnapshot.durationLabel) cur.durationLabel = _activeOrder.afterSnapshot.durationLabel;
-                        localStorage.setItem('hidz_session', JSON.stringify(cur));
-                        try { rebuildUIPreserveScroll(); buildHamburgerMenu(); } catch (e) {}
-                        window._prcRefreshHeaderLive(); window.openVipReceipt(_activeOrder); return;
-                    }
-                    if (_activeOrder.status === 'EXPIRED' || _activeOrder.status === 'CANCELLED') { updateQrisModalStateUI(); return; }
-                    if (isManual) showHzToast('Pembayaran belum diterima, silakan selesaikan scan QRIS');
-                }).catch(function () { if (isManual && chk) { chk.disabled = false; chk.innerHTML = '<i class="fas fa-sync-alt"></i> CEK TRANSAKSI'; } });
-            }
-            window.manualCheckVipOrder = function () { pollOrderStatus(true); };
-            window.recreateExpiredVipOrder = function () {
-                if (!_activeOrder) return;
-                var p = _plans.filter(function (x) { return x.id === _activeOrder.planId; })[0]; if (p) _selectedPlan = p;
-                window.closeVipQrisModal(); window.createVipQrisOrder();
-            };
-            window.cancelActiveVipOrder = function () {
-                if (!_activeOrder) { window.closeVipQrisModal(); return; }
-                var id = _activeOrder.orderId; stopQrisTimers();
-                vipApi('/api/vip/order-cancel', { orderId: id }).then(function () { _activeOrder = null; window.closeVipQrisModal(); showHzToast('Pesanan QRIS dibatalkan'); }).catch(function () { window.closeVipQrisModal(); });
-            };
-            window.closeVipQrisModal = function () { document.getElementById('vipQrisModal').classList.remove('open'); stopQrisTimers(); };
-
-            window.openVipReceipt = function (ord) {
-                if (!ord) return; _currentReceipt = ord;
-                var sTs = ord.activatedAt || ord.paidAt || ord.createdAt, eTs = (ord.afterSnapshot && ord.afterSnapshot.expiresAt) ? ord.afterSnapshot.expiresAt : (sTs + (ord.durationMs || 0));
-                document.getElementById('vipReceiptCardBody').innerHTML =
-                    '<div style="text-align:center;border-bottom:2.5px dashed var(--border);padding-bottom:12px;margin-bottom:12px;">' +
-                    '<div style="font-family:\'Orbitron\',sans-serif;font-size:15px;font-weight:900;">HIDZ STORE</div>' +
-                    '<div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">Bukti Transaksi Resmi Upgrade VIP</div><span class="prc-receipt-badge">BERHASIL</span></div>' +
-                    '<div class="prc-sum-row"><span>ID Transaksi</span><b>' + esc(ord.orderId) + '</b></div>' +
-                    '<div class="prc-sum-row"><span>Waktu Bayar</span><b>' + esc(fmtWib(ord.paidAt || ord.createdAt)) + '</b></div>' +
-                    '<div class="prc-sum-row"><span>Username</span><b>' + esc(ord.username) + '</b></div>' +
-                    '<div class="prc-sum-row"><span>Paket &amp; Durasi</span><b>VIP ' + esc(ord.planLabel) + ' (' + esc(ord.days) + ' Hari)</b></div>' +
-                    '<div class="prc-sum-row"><span>Mulai Aktif</span><b>' + esc(fmtWib(sTs)) + '</b></div>' +
-                    '<div class="prc-sum-row"><span>Berakhir Pada</span><b>' + esc(fmtWib(eTs)) + '</b></div>' +
-                    '<div class="prc-sum-row"><span>Harga Normal</span><b>' + fmtRp(ord.normalPrice) + '</b></div>' +
-                    (ord.voucherCode ? '<div class="prc-sum-row" style="color:#22c55e;"><span>Voucher (' + esc(ord.voucherCode) + ')</span><b>- ' + fmtRp(ord.discountAmount) + '</b></div>' : '') +
-                    '<div class="prc-sum-row total"><span>Total Dibayar</span><span style="color:var(--primary);font-family:\'Orbitron\',sans-serif;">' + fmtRp(ord.totalAmount) + '</span></div>' +
-                    '<div style="margin-top:12px;padding:10px;background:var(--bg);border:2px solid var(--border);text-align:center;">' +
-                    '<div style="font-size:9px;font-weight:800;color:var(--text-secondary);">KODE VERIFIKASI KEASLIAN (HMAC)</div>' +
-                    '<div style="font-family:\'Orbitron\',monospace;font-size:13px;font-weight:900;color:var(--primary);margin-top:3px;">' + esc(ord.verificationCode || '-') + '</div></div>';
-                document.getElementById('vipReceiptOverlay').classList.add('open');
-            };
-            window.closeVipReceipt = function () { document.getElementById('vipReceiptOverlay').classList.remove('open'); };
-            window.downloadVipReceiptPng = function () {
-                var o = _currentReceipt; if (!o) return;
-                var c = document.createElement('canvas'); c.width = 720; c.height = 900; var ctx = c.getContext('2d');
-                ctx.fillStyle = '#f5f0e8'; ctx.fillRect(0, 0, 720, 900);
-                ctx.fillStyle = '#fffef9'; ctx.fillRect(36, 36, 648, 828); ctx.lineWidth = 6; ctx.strokeStyle = '#0a0a0a'; ctx.strokeRect(36, 36, 648, 828);
-                ctx.fillStyle = '#6a3fc8'; ctx.fillRect(36, 36, 648, 115); ctx.strokeRect(36, 36, 648, 115);
-                ctx.fillStyle = '#fff'; ctx.font = '900 26px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('HIDZ STORE — BUKTI TRANSAKSI VIP', 360, 88);
-                ctx.font = '700 15px sans-serif'; ctx.fillText('NMID: ID1026609601806 • QRIS Otomatis', 360, 122);
-                var sTs = o.activatedAt || o.paidAt || o.createdAt, eTs = (o.afterSnapshot && o.afterSnapshot.expiresAt) ? o.afterSnapshot.expiresAt : (sTs + (o.durationMs || 0));
-                var rows = [['ID Transaksi', o.orderId], ['Waktu Bayar', fmtWib(o.paidAt || o.createdAt)], ['Username', o.username], ['Paket VIP', 'VIP ' + o.planLabel + ' (' + o.days + ' Hari)'], ['Mulai Aktif', fmtWib(sTs)], ['Berakhir Pada', fmtWib(eTs)], ['Harga Normal', fmtRp(o.normalPrice)], ['Voucher', o.voucherCode ? (o.voucherCode + ' (-' + fmtRp(o.discountAmount) + ')') : '-'], ['Total Dibayar', fmtRp(o.totalAmount)]];
-                var y = 210;
-                rows.forEach(function (r) {
-                    ctx.textAlign = 'left'; ctx.fillStyle = '#555'; ctx.font = '700 17px sans-serif'; ctx.fillText(r[0], 70, y);
-                    ctx.textAlign = 'right'; ctx.fillStyle = '#0a0a0a'; ctx.font = '800 17px sans-serif'; ctx.fillText(String(r[1]), 650, y); y += 52;
-                });
-                ctx.fillStyle = '#ffe94d'; ctx.fillRect(70, 710, 580, 100); ctx.strokeRect(70, 710, 580, 100);
-                ctx.textAlign = 'center'; ctx.fillStyle = '#0a0a0a'; ctx.font = '800 14px sans-serif'; ctx.fillText('KODE VERIFIKASI KEASLIAN BUKTI (HMAC)', 360, 745);
-                ctx.font = '900 22px monospace'; ctx.fillText(o.verificationCode || '-', 360, 785);
-                var a = document.createElement('a'); a.download = 'bukti-vip-' + o.orderId + '.png'; a.href = c.toDataURL('image/png');
-                document.body.appendChild(a); a.click(); document.body.removeChild(a); showHzToast('Bukti transaksi (PNG) diunduh');
-            };
-            window.openVipTxHistory = function () {
-                var ov = document.getElementById('vipTxHistoryOverlay'), listEl = document.getElementById('vipTxHistoryList');
-                if (ov) ov.classList.add('open'); if (listEl) listEl.innerHTML = '<div class="ann-empty">Memuat riwayat...</div>';
-                vipApi('/api/vip/transactions', {}).then(function (res) {
-                    var items = (res && res.ok && Array.isArray(res.items)) ? res.items : []; _txHistoryCache = items;
-                    if (!items.length) { listEl.innerHTML = '<div class="ann-empty">Belum ada riwayat pembelian VIP.</div>'; return; }
-                    listEl.innerHTML = items.map(function (it, i) {
-                        return '<div class="item-row" onclick="window.openVipReceiptFromHistory(' + i + ')"><div class="prc-plan-icon"><i class="fas fa-check"></i></div><div class="item-info"><div class="item-name">VIP ' + esc(it.planLabel) + ' \u2022 ' + fmtRp(it.totalAmount) + '</div><div class="item-desc">' + esc(it.orderId) + ' &bull; ' + esc(fmtWib(it.paidAt || it.createdAt)) + '</div></div><i class="fas fa-download" style="color:var(--primary);"></i></div>';
-                    }).join('');
-                }).catch(function () { if (listEl) listEl.innerHTML = '<div class="ann-empty">Gagal memuat riwayat.</div>'; });
-            };
-            window.openVipReceiptFromHistory = function (i) { if (_txHistoryCache[i]) window.openVipReceipt(_txHistoryCache[i]); };
-            window.closeVipTxHistory = function () { document.getElementById('vipTxHistoryOverlay').classList.remove('open'); };
-        })();
-        </script>
-
-    </body>
+</body>
 </html>
 `;
 
@@ -10273,6 +9964,315 @@
                     });
                 });
             }
+        </script>
+    
+        <script id="hidzVipPricingScript">
+        (function () {
+            'use strict';
+            var DEFAULT_PLANS = [
+                { id: '1d',  label: '1 Day',   days: 1,   price: 3000,   durationLabel: '1 HARI' },
+                { id: '3d',  label: '3 Day',   days: 3,   price: 5000,   durationLabel: '3 HARI' },
+                { id: '7d',  label: '7 Day',   days: 7,   price: 10000,  durationLabel: '7 HARI' },
+                { id: '14d', label: '14 Day',  days: 14,  price: 15000,  durationLabel: '14 HARI' },
+                { id: '1m',  label: '1 Month', days: 30,  price: 20000,  durationLabel: '1 BULAN' },
+                { id: '3m',  label: '3 Month', days: 90,  price: 30000,  durationLabel: '3 BULAN' },
+                { id: '5m',  label: '5 Month', days: 150, price: 50000,  durationLabel: '5 BULAN' },
+                { id: '1y',  label: '1 Year',  days: 365, price: 100000, durationLabel: '1 TAHUN' }
+            ];
+            var _plans = DEFAULT_PLANS.slice(), _appliedVoucher = null, _selectedPlan = null;
+            var _activeOrder = null, _currentReceipt = null, _txHistoryCache = [];
+            var _serverTimeOffset = 0, _voucherPollTimer = null, _qrisPollTimer = null, _qrisCdTimer = null, _notified = {};
+
+            function getSess() { try { return JSON.parse(localStorage.getItem('hidz_session') || '{}'); } catch (e) { return {}; } }
+            function serverNow() { return Date.now() + _serverTimeOffset; }
+            function syncOffset(ts) { if (typeof ts === 'number' && ts > 0) _serverTimeOffset = ts - Date.now(); }
+            function fmtRp(n) { return 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID'); }
+            function fmtWib(ts) {
+                if (!ts) return '-';
+                var d = new Date(Number(ts)), z = { timeZone: 'Asia/Jakarta' };
+                return d.toLocaleDateString('id-ID', Object.assign({ day: '2-digit', month: 'short', year: 'numeric' }, z)) + ', ' +
+                    d.toLocaleTimeString('id-ID', Object.assign({ hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }, z)) + ' WIB';
+            }
+            function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+            function notifyOnce(id, ev, msg) { var k = (id || 'g') + ':' + ev; if (_notified[k]) return; _notified[k] = true; if (typeof showHzToast === 'function') showHzToast(msg); }
+
+            function vipApi(endpoint, payload) {
+                var s = getSess(), body = Object.assign({ id: s.id || '', username: s.username || '', password: s.password || '', role: s.role || '' }, payload || {});
+                var call = function (tk) {
+                    var h = { 'Content-Type': 'application/json' }; if (tk) h.Authorization = 'Bearer ' + tk;
+                    return fetch(endpoint, { method: 'POST', headers: h, body: JSON.stringify(body) }).then(function (r) { return r.json(); }).then(function (res) { if (res && res.serverNow) syncOffset(res.serverNow); return res; });
+                };
+                try { if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return firebase.auth().currentUser.getIdToken(false).then(call).catch(function () { return call(''); }); } catch (e) {}
+                return call('');
+            }
+
+            window._prcRefreshHeaderLive = function () {
+                var s = getSess(), uEl = document.getElementById('prcAccUsername'), rEl = document.getElementById('prcAccRoleBadge'), lEl = document.getElementById('prcAccRemainLive'), adm = document.getElementById('prcAdminNotice');
+                if (uEl) uEl.textContent = s.username || '-';
+                var role = (s.role || 'user').toLowerCase();
+                if (rEl) { rEl.textContent = role.toUpperCase(); rEl.className = 'prc-role-badge' + (role === 'vip' ? ' is-vip' : ''); }
+                if (adm) adm.style.display = (role === 'admin') ? 'block' : 'none';
+                if (!lEl) return;
+                if (!s.expiresAt) { lEl.textContent = 'UNLIMITED'; return; }
+                var diff = s.expiresAt - serverNow();
+                if (diff <= 0) { lEl.textContent = 'EXPIRED'; return; }
+                var d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000), m = Math.floor((diff % 3600000) / 60000), sc = Math.floor((diff % 60000) / 1000);
+                lEl.textContent = (d > 0 ? d + 'h ' : '') + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(sc).padStart(2, '0');
+            };
+            setInterval(function () { var ov = document.getElementById('pricingOverlay'); if (ov && ov.classList.contains('open')) window._prcRefreshHeaderLive(); }, 1000);
+
+            function renderPlansGrid() {
+                var grid = document.getElementById('prcPlansGrid'); if (!grid) return;
+                var isAdmin = (getSess().role === 'admin'), html = '';
+                _plans.forEach(function (p) {
+                    var hasV = !!(_appliedVoucher && _appliedVoucher.planId === p.id), fp = hasV ? _appliedVoucher.finalPrice : p.price, pd = Math.round(fp / (p.days || 1));
+                    html += '<div class="prc-plan-card' + (hasV ? ' has-disc' : '') + '"><div>' +
+                        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div class="prc-plan-icon"><i class="fas fa-gem"></i></div>' +
+                        (hasV ? '<span class="card-new-badge" style="position:static;background:#22c55e;color:#fff;">-' + esc(_appliedVoucher.percent) + '%</span>' : '') + '</div>' +
+                        '<div class="prc-plan-name">' + esc(p.label) + '</div><div class="prc-plan-desc">Masa aktif ' + esc(p.days) + ' hari penuh</div><div style="margin-top:8px;">' +
+                        (hasV ? '<div class="prc-price-old">' + fmtRp(p.price) + '</div>' : '') + '<div class="prc-price-now">' + fmtRp(fp) + '</div>' +
+                        '<div style="font-size:10px;font-weight:700;color:var(--text-secondary);">\u2248 ' + fmtRp(pd) + ' / hari</div></div></div>' +
+                        '<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;" onclick="window.selectVipPlan(\'' + p.id + '\')"') + '>' +
+                        (isAdmin ? 'Khusus User/VIP' : 'Pilih Paket') + '</button></div>';
+                });
+                grid.innerHTML = html;
+            }
+            function renderVoucherBanner() {
+                var b = document.getElementById('prcVoucherActiveBanner'), t = document.getElementById('prcVoucherActiveText');
+                if (!b || !t) return;
+                if (!_appliedVoucher) { b.style.display = 'none'; return; }
+                b.style.display = 'flex';
+                t.textContent = 'Voucher ' + _appliedVoucher.code + ' aktif (' + _appliedVoucher.planLabel + ' jadi ' + fmtRp(_appliedVoucher.finalPrice) + ')';
+            }
+            function startVoucherPolling() {
+                if (_voucherPollTimer) clearInterval(_voucherPollTimer);
+                _voucherPollTimer = setInterval(function () {
+                    var ov = document.getElementById('pricingOverlay');
+                    if (!ov || !ov.classList.contains('open') || !_appliedVoucher || document.visibilityState === 'hidden') return;
+                    vipApi('/api/vip/voucher-check', { code: _appliedVoucher.code, planId: _appliedVoucher.planId, silentPoll: true }).then(function (res) {
+                        if (!res || !res.ok || !res.voucher) {
+                            _appliedVoucher = null; renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI();
+                            showHzToast('Voucher tidak lagi berlaku, harga kembali normal.');
+                        } else {
+                            _appliedVoucher = res.voucher; renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI();
+                        }
+                    }).catch(function () {});
+                }, 10000);
+            }
+            window.openPricingSheet = function () {
+                var s = getSess(); if (!s || !s.username) { showHzToast('Silakan login terlebih dahulu'); return; }
+                var ov = document.getElementById('pricingOverlay'); if (ov) ov.classList.add('open');
+                try { history.pushState({ hzModal: 'pricing' }, ''); } catch (e) {}
+                window._prcRefreshHeaderLive(); renderPlansGrid(); startVoucherPolling();
+                vipApi('/api/vip/plans', {}).then(function (res) { if (res && res.ok && Array.isArray(res.plans)) { _plans = res.plans; renderPlansGrid(); } }).catch(function () {});
+            };
+            window.closePricingSheet = function () {
+                var ov = document.getElementById('pricingOverlay'); if (ov) ov.classList.remove('open');
+                if (_voucherPollTimer) { clearInterval(_voucherPollTimer); _voucherPollTimer = null; }
+            };
+            window.togglePricingVoucherBox = function () { var b = document.getElementById('prcVoucherBox'); if (b) b.classList.toggle('open'); };
+            window.applyPricingVoucher = function () {
+                var inp = document.getElementById('prcVoucherInput'), code = inp ? inp.value.trim().toUpperCase() : '';
+                if (!code) { showHzToast('Masukkan kode voucher terlebih dahulu'); return; }
+                var btn = document.getElementById('prcVoucherApplyBtn'); if (btn) { btn.disabled = true; btn.textContent = '...'; }
+                vipApi('/api/vip/voucher-check', { code: code }).then(function (res) {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Terapkan'; }
+                    if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Kode voucher tidak valid'); return; }
+                    _appliedVoucher = res.voucher; renderVoucherBanner(); renderPlansGrid();
+                    showHzToast('Voucher ' + _appliedVoucher.code + ' diterapkan untuk paket ' + _appliedVoucher.planLabel);
+                }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Terapkan'; } showHzToast('Gagal memeriksa voucher'); });
+            };
+            window.removePricingVoucher = function () {
+                _appliedVoucher = null;
+                ['prcVoucherInput', 'chkVoucherInput'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+                renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI(); showHzToast('Voucher dilepas');
+            };
+            function updateCheckoutSummaryUI() {
+                if (!_selectedPlan) return;
+                var hasV = !!(_appliedVoucher && _appliedVoucher.planId === _selectedPlan.id), fp = hasV ? _appliedVoucher.finalPrice : _selectedPlan.price;
+                document.getElementById('chkModalTitle').textContent = 'Upgrade ke VIP (' + _selectedPlan.label + ' \u2022 ' + fmtRp(fp) + ')';
+                document.getElementById('chkSumPlan').textContent = 'VIP \u2022 ' + _selectedPlan.label + ' (' + _selectedPlan.days + ' Hari)';
+                document.getElementById('chkSumNormal').textContent = fmtRp(_selectedPlan.price);
+                var dRow = document.getElementById('chkSumDiscRow'), dEl = document.getElementById('chkSumDisc');
+                if (hasV) { dRow.style.display = 'flex'; dEl.textContent = '- ' + fmtRp(_appliedVoucher.discountAmount) + ' (' + _appliedVoucher.code + ')'; }
+                else { dRow.style.display = 'none'; }
+                document.getElementById('chkSumTotal').textContent = fmtRp(fp);
+                document.getElementById('chkVoucherInput').value = hasV ? _appliedVoucher.code : '';
+            }
+            window.selectVipPlan = function (planId) {
+                if (getSess().role === 'admin') { showHzToast('Role admin tidak dapat membeli paket VIP'); return; }
+                var p = _plans.filter(function (x) { return x.id === planId; })[0]; if (!p) return;
+                _selectedPlan = p;
+                vipApi('/api/vip/order-status', { orderId: '' }).then(function (res) {
+                    if (res && res.ok && res.order && res.order.status === 'PENDING' && serverNow() < Number(res.order.expiresAt)) {
+                        openQrisModalWithOrder(res.order); showHzToast('Melanjutkan transaksi QRIS yang masih aktif'); return;
+                    }
+                    updateCheckoutSummaryUI(); document.getElementById('vipCheckoutModal').classList.add('open');
+                }).catch(function () { updateCheckoutSummaryUI(); document.getElementById('vipCheckoutModal').classList.add('open'); });
+            };
+            window.closeVipCheckoutModal = function () { document.getElementById('vipCheckoutModal').classList.remove('open'); };
+            window.applyCheckoutVoucher = function () {
+                if (!_selectedPlan) return;
+                var code = (document.getElementById('chkVoucherInput').value || '').trim().toUpperCase();
+                if (!code) { window.removePricingVoucher(); return; }
+                vipApi('/api/vip/voucher-check', { code: code, planId: _selectedPlan.id }).then(function (res) {
+                    if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Voucher tidak valid'); return; }
+                    _appliedVoucher = res.voucher; document.getElementById('prcVoucherInput').value = _appliedVoucher.code;
+                    renderVoucherBanner(); renderPlansGrid(); updateCheckoutSummaryUI(); showHzToast('Voucher diterapkan!');
+                }).catch(function () { showHzToast('Gagal memvalidasi voucher'); });
+            };
+            window.createVipQrisOrder = function () {
+                if (!_selectedPlan) return;
+                var btn = document.getElementById('chkPayBtn');
+                if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Membuat QRIS...'; }
+                var vCode = (_appliedVoucher && _appliedVoucher.planId === _selectedPlan.id) ? _appliedVoucher.code : '';
+                vipApi('/api/vip/order-create', { planId: _selectedPlan.id, voucherCode: vCode }).then(function (res) {
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-qrcode"></i> Bayar dengan QRIS'; }
+                    if (!res || !res.ok || !res.order) {
+                        if (res && res.reason === 'voucher_invalid') { _appliedVoucher = null; renderVoucherBanner(); renderPlansGrid(); updateCheckoutSummaryUI(); }
+                        showHzToast((res && res.message) || 'Gagal membuat pesanan QRIS'); return;
+                    }
+                    window.closeVipCheckoutModal(); openQrisModalWithOrder(res.order);
+                }).catch(function () {
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-qrcode"></i> Bayar dengan QRIS'; }
+                    showHzToast('Gagal terhubung ke server pembayaran');
+                });
+            };
+            function openQrisModalWithOrder(order) {
+                _activeOrder = order;
+                document.getElementById('vipQrisModal').classList.add('open');
+                document.getElementById('qrisTotalPayable').textContent = fmtRp(order.totalAmount);
+                document.getElementById('qrisOrderIdTxt').textContent = order.orderId;
+                var img = document.getElementById('qrisCodeImg');
+                if (img) {
+                    var fbQr = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(order.qrString || order.orderId);
+                    img.src = order.qrImageUrl || fbQr; img.onerror = function () { img.onerror = null; img.src = fbQr; };
+                }
+                updateQrisModalStateUI(); startQrisTimers();
+            }
+            function updateQrisModalStateUI() {
+                if (!_activeOrder) return;
+                var box = document.getElementById('qrisImgContainer'), chk = document.getElementById('qrisCheckBtn'), rec = document.getElementById('qrisRecreateBtn'), can = document.getElementById('qrisCancelBtn'), fb = document.getElementById('qrisStatusFeedback');
+                if ((_activeOrder.status === 'EXPIRED' || serverNow() >= Number(_activeOrder.expiresAt)) && _activeOrder.status === 'PENDING') _activeOrder.status = 'EXPIRED';
+                if (_activeOrder.status === 'EXPIRED') {
+                    box.classList.add('expired'); chk.style.display = 'none'; rec.style.display = 'flex'; can.style.display = 'none';
+                    fb.style.color = '#ef4444'; fb.textContent = 'QRIS telah kedaluwarsa. Silakan buat QRIS baru.';
+                    notifyOnce(_activeOrder.orderId, 'expired', 'Waktu pembayaran QRIS habis');
+                } else {
+                    box.classList.remove('expired'); chk.style.display = 'flex'; rec.style.display = 'none'; can.style.display = 'flex';
+                    fb.style.color = 'var(--primary)'; fb.textContent = 'Menunggu pembayaran QRIS...';
+                }
+            }
+            function stopQrisTimers() {
+                if (_qrisCdTimer) { clearInterval(_qrisCdTimer); _qrisCdTimer = null; }
+                if (_qrisPollTimer) { clearInterval(_qrisPollTimer); _qrisPollTimer = null; }
+            }
+            function startQrisTimers() {
+                stopQrisTimers();
+                var tick = function () {
+                    if (!_activeOrder) return;
+                    var rem = Math.max(0, Number(_activeOrder.expiresAt) - serverNow());
+                    document.getElementById('qrisCountdownTxt').textContent = String(Math.floor(rem / 60000)).padStart(2, '0') + ':' + String(Math.floor((rem % 60000) / 1000)).padStart(2, '0');
+                    if (rem <= 0 && _activeOrder.status === 'PENDING') { _activeOrder.status = 'EXPIRED'; updateQrisModalStateUI(); stopQrisTimers(); }
+                };
+                tick(); _qrisCdTimer = setInterval(tick, 1000);
+                _qrisPollTimer = setInterval(function () {
+                    var m = document.getElementById('vipQrisModal');
+                    if (m && m.classList.contains('open') && _activeOrder && _activeOrder.status === 'PENDING' && document.visibilityState !== 'hidden') pollOrderStatus(false);
+                }, 3000);
+            }
+            function pollOrderStatus(isManual) {
+                if (!_activeOrder) return;
+                var chk = document.getElementById('qrisCheckBtn');
+                if (isManual && chk) { chk.disabled = true; chk.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa...'; }
+                vipApi('/api/vip/order-status', { orderId: _activeOrder.orderId }).then(function (res) {
+                    if (isManual && chk) { chk.disabled = false; chk.innerHTML = '<i class="fas fa-sync-alt"></i> CEK TRANSAKSI'; }
+                    if (!res || !res.ok || !res.order) return;
+                    _activeOrder = res.order;
+                    if (_activeOrder.status === 'SUCCESS') {
+                        stopQrisTimers(); window.closeVipQrisModal();
+                        notifyOnce(_activeOrder.orderId, 'success', 'Pembayaran berhasil! Akun kamu sekarang VIP.');
+                        var cur = getSess(); cur.role = 'vip';
+                        if (_activeOrder.afterSnapshot && _activeOrder.afterSnapshot.expiresAt) cur.expiresAt = _activeOrder.afterSnapshot.expiresAt;
+                        if (_activeOrder.afterSnapshot && _activeOrder.afterSnapshot.durationLabel) cur.durationLabel = _activeOrder.afterSnapshot.durationLabel;
+                        localStorage.setItem('hidz_session', JSON.stringify(cur));
+                        try { rebuildUIPreserveScroll(); buildHamburgerMenu(); } catch (e) {}
+                        window._prcRefreshHeaderLive(); window.openVipReceipt(_activeOrder); return;
+                    }
+                    if (_activeOrder.status === 'EXPIRED' || _activeOrder.status === 'CANCELLED') { updateQrisModalStateUI(); return; }
+                    if (isManual) showHzToast('Pembayaran belum diterima, silakan selesaikan scan QRIS');
+                }).catch(function () { if (isManual && chk) { chk.disabled = false; chk.innerHTML = '<i class="fas fa-sync-alt"></i> CEK TRANSAKSI'; } });
+            }
+            window.manualCheckVipOrder = function () { pollOrderStatus(true); };
+            window.recreateExpiredVipOrder = function () {
+                if (!_activeOrder) return;
+                var p = _plans.filter(function (x) { return x.id === _activeOrder.planId; })[0]; if (p) _selectedPlan = p;
+                window.closeVipQrisModal(); window.createVipQrisOrder();
+            };
+            window.cancelActiveVipOrder = function () {
+                if (!_activeOrder) { window.closeVipQrisModal(); return; }
+                var id = _activeOrder.orderId; stopQrisTimers();
+                vipApi('/api/vip/order-cancel', { orderId: id }).then(function () { _activeOrder = null; window.closeVipQrisModal(); showHzToast('Pesanan QRIS dibatalkan'); }).catch(function () { window.closeVipQrisModal(); });
+            };
+            window.closeVipQrisModal = function () { document.getElementById('vipQrisModal').classList.remove('open'); stopQrisTimers(); };
+
+            window.openVipReceipt = function (ord) {
+                if (!ord) return; _currentReceipt = ord;
+                var sTs = ord.activatedAt || ord.paidAt || ord.createdAt, eTs = (ord.afterSnapshot && ord.afterSnapshot.expiresAt) ? ord.afterSnapshot.expiresAt : (sTs + (ord.durationMs || 0));
+                document.getElementById('vipReceiptCardBody').innerHTML =
+                    '<div style="text-align:center;border-bottom:2.5px dashed var(--border);padding-bottom:12px;margin-bottom:12px;">' +
+                    '<div style="font-family:\'Orbitron\',sans-serif;font-size:15px;font-weight:900;">HIDZ STORE</div>' +
+                    '<div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">Bukti Transaksi Resmi Upgrade VIP</div><span class="prc-receipt-badge">BERHASIL</span></div>' +
+                    '<div class="prc-sum-row"><span>ID Transaksi</span><b>' + esc(ord.orderId) + '</b></div>' +
+                    '<div class="prc-sum-row"><span>Waktu Bayar</span><b>' + esc(fmtWib(ord.paidAt || ord.createdAt)) + '</b></div>' +
+                    '<div class="prc-sum-row"><span>Username</span><b>' + esc(ord.username) + '</b></div>' +
+                    '<div class="prc-sum-row"><span>Paket &amp; Durasi</span><b>VIP ' + esc(ord.planLabel) + ' (' + esc(ord.days) + ' Hari)</b></div>' +
+                    '<div class="prc-sum-row"><span>Mulai Aktif</span><b>' + esc(fmtWib(sTs)) + '</b></div>' +
+                    '<div class="prc-sum-row"><span>Berakhir Pada</span><b>' + esc(fmtWib(eTs)) + '</b></div>' +
+                    '<div class="prc-sum-row"><span>Harga Normal</span><b>' + fmtRp(ord.normalPrice) + '</b></div>' +
+                    (ord.voucherCode ? '<div class="prc-sum-row" style="color:#22c55e;"><span>Voucher (' + esc(ord.voucherCode) + ')</span><b>- ' + fmtRp(ord.discountAmount) + '</b></div>' : '') +
+                    '<div class="prc-sum-row total"><span>Total Dibayar</span><span style="color:var(--primary);font-family:\'Orbitron\',sans-serif;">' + fmtRp(ord.totalAmount) + '</span></div>' +
+                    '<div style="margin-top:12px;padding:10px;background:var(--bg);border:2px solid var(--border);text-align:center;">' +
+                    '<div style="font-size:9px;font-weight:800;color:var(--text-secondary);">KODE VERIFIKASI KEASLIAN (HMAC)</div>' +
+                    '<div style="font-family:\'Orbitron\',monospace;font-size:13px;font-weight:900;color:var(--primary);margin-top:3px;">' + esc(ord.verificationCode || '-') + '</div></div>';
+                document.getElementById('vipReceiptOverlay').classList.add('open');
+            };
+            window.closeVipReceipt = function () { document.getElementById('vipReceiptOverlay').classList.remove('open'); };
+            window.downloadVipReceiptPng = function () {
+                var o = _currentReceipt; if (!o) return;
+                var c = document.createElement('canvas'); c.width = 720; c.height = 900; var ctx = c.getContext('2d');
+                ctx.fillStyle = '#f5f0e8'; ctx.fillRect(0, 0, 720, 900);
+                ctx.fillStyle = '#fffef9'; ctx.fillRect(36, 36, 648, 828); ctx.lineWidth = 6; ctx.strokeStyle = '#0a0a0a'; ctx.strokeRect(36, 36, 648, 828);
+                ctx.fillStyle = '#6a3fc8'; ctx.fillRect(36, 36, 648, 115); ctx.strokeRect(36, 36, 648, 115);
+                ctx.fillStyle = '#fff'; ctx.font = '900 26px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('HIDZ STORE — BUKTI TRANSAKSI VIP', 360, 88);
+                ctx.font = '700 15px sans-serif'; ctx.fillText('NMID: ID1026609601806 • QRIS Otomatis', 360, 122);
+                var sTs = o.activatedAt || o.paidAt || o.createdAt, eTs = (o.afterSnapshot && o.afterSnapshot.expiresAt) ? o.afterSnapshot.expiresAt : (sTs + (o.durationMs || 0));
+                var rows = [['ID Transaksi', o.orderId], ['Waktu Bayar', fmtWib(o.paidAt || o.createdAt)], ['Username', o.username], ['Paket VIP', 'VIP ' + o.planLabel + ' (' + o.days + ' Hari)'], ['Mulai Aktif', fmtWib(sTs)], ['Berakhir Pada', fmtWib(eTs)], ['Harga Normal', fmtRp(o.normalPrice)], ['Voucher', o.voucherCode ? (o.voucherCode + ' (-' + fmtRp(o.discountAmount) + ')') : '-'], ['Total Dibayar', fmtRp(o.totalAmount)]];
+                var y = 210;
+                rows.forEach(function (r) {
+                    ctx.textAlign = 'left'; ctx.fillStyle = '#555'; ctx.font = '700 17px sans-serif'; ctx.fillText(r[0], 70, y);
+                    ctx.textAlign = 'right'; ctx.fillStyle = '#0a0a0a'; ctx.font = '800 17px sans-serif'; ctx.fillText(String(r[1]), 650, y); y += 52;
+                });
+                ctx.fillStyle = '#ffe94d'; ctx.fillRect(70, 710, 580, 100); ctx.strokeRect(70, 710, 580, 100);
+                ctx.textAlign = 'center'; ctx.fillStyle = '#0a0a0a'; ctx.font = '800 14px sans-serif'; ctx.fillText('KODE VERIFIKASI KEASLIAN BUKTI (HMAC)', 360, 745);
+                ctx.font = '900 22px monospace'; ctx.fillText(o.verificationCode || '-', 360, 785);
+                var a = document.createElement('a'); a.download = 'bukti-vip-' + o.orderId + '.png'; a.href = c.toDataURL('image/png');
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); showHzToast('Bukti transaksi (PNG) diunduh');
+            };
+            window.openVipTxHistory = function () {
+                var ov = document.getElementById('vipTxHistoryOverlay'), listEl = document.getElementById('vipTxHistoryList');
+                if (ov) ov.classList.add('open'); if (listEl) listEl.innerHTML = '<div class="ann-empty">Memuat riwayat...</div>';
+                vipApi('/api/vip/transactions', {}).then(function (res) {
+                    var items = (res && res.ok && Array.isArray(res.items)) ? res.items : []; _txHistoryCache = items;
+                    if (!items.length) { listEl.innerHTML = '<div class="ann-empty">Belum ada riwayat pembelian VIP.</div>'; return; }
+                    listEl.innerHTML = items.map(function (it, i) {
+                        return '<div class="item-row" onclick="window.openVipReceiptFromHistory(' + i + ')"><div class="prc-plan-icon"><i class="fas fa-check"></i></div><div class="item-info"><div class="item-name">VIP ' + esc(it.planLabel) + ' \u2022 ' + fmtRp(it.totalAmount) + '</div><div class="item-desc">' + esc(it.orderId) + ' &bull; ' + esc(fmtWib(it.paidAt || it.createdAt)) + '</div></div><i class="fas fa-download" style="color:var(--primary);"></i></div>';
+                    }).join('');
+                }).catch(function () { if (listEl) listEl.innerHTML = '<div class="ann-empty">Gagal memuat riwayat.</div>'; });
+            };
+            window.openVipReceiptFromHistory = function (i) { if (_txHistoryCache[i]) window.openVipReceipt(_txHistoryCache[i]); };
+            window.closeVipTxHistory = function () { document.getElementById('vipTxHistoryOverlay').classList.remove('open'); };
+        })();
         </script>
     </body>
 </html>
