@@ -293,39 +293,6 @@
                 #hzGate .hzg-spin span { animation: none; opacity: 0.7; }
                 #hzGate .hzg-done path { animation: none; stroke-dashoffset: 0; }
             }
-            /* FULL MIDTRANS QRIS CLEAN */
-            #vipQrisModal #qrisImgContainer {
-                width: 100% !important;
-                max-width: 310px !important;
-                height: auto !important;
-                aspect-ratio: unset !important;
-                margin: 0 auto 14px !important;
-                padding: 0 !important;
-                background: #ffffff !important;
-                border: 3px solid var(--border) !important;
-                box-shadow: 4px 4px 0 var(--shadow) !important;
-                overflow: hidden !important;
-                position: relative !important;
-                display: block !important;
-                -webkit-touch-callout: none !important;
-                -webkit-user-select: none !important;
-                user-select: none !important;
-            }
-            #vipQrisModal #qrisImgContainer img#qrisCodeImg {
-                position: static !important;
-                width: 100% !important;
-                height: auto !important;
-                max-width: 100% !important;
-                transform: none !important;
-                object-fit: contain !important;
-                display: block !important;
-                pointer-events: none !important;
-                -webkit-touch-callout: none !important;
-                -webkit-user-select: none !important;
-                -webkit-user-drag: none !important;
-                user-select: none !important;
-            }
-
         </style>
         <script>
             /* Halaman langsung dikunci begitu HTML mulai dibaca, sebelum apa pun
@@ -5388,45 +5355,43 @@
 
             <!-- Modal Pembayaran QRIS Dinamis 5 Menit -->
             <div class="prc-modal-backdrop" id="vipQrisModal">
-            <div class="prc-modal">
-                <div class="prc-modal-head">
-                    <div>
-                        <div class="prc-modal-title">HIDZ STORE</div>
-                        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);">NMID: ID1026609601806 &bull; QRIS Dinamis</div>
+                <div class="prc-modal-card" style="text-align:center;">
+                    <div class="prc-modal-hdr">
+                        <div style="text-align:left;">
+                            <div class="prc-modal-ttl">Hidz Store</div>
+                            <div style="font-size:10px;font-weight:700;color:var(--text-secondary);">NMID: ID1026609601806 &bull; QRIS Dinamis</div>
+                        </div>
+                        <button type="button" class="icon-btn" style="width:30px;height:30px;" onclick="window.closeVipQrisModal()"><i class="fas fa-times"></i></button>
                     </div>
-                    <button type="button" class="prc-back-btn" onclick="window.closeVipQrisModal()" aria-label="Tutup">&#10005;</button>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-secondary);">TOTAL BAYAR</div>
-                    <div id="qrisTotalPayable" style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:var(--primary);margin:2px 0;">Rp 0</div>
-                    <div style="font-size:10.5px;font-weight:700;color:var(--text-secondary);">ID Transaksi: <b id="qrisOrderIdTxt" style="color:var(--text);">-</b></div>
-                    <div class="prc-qris-timer">
-                        <i class="fas fa-clock"></i>
-                        <span id="qrisCountdownTxt">05:00</span>
+                    <div style="font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;">Total Bayar</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:var(--primary);margin:2px 0;" id="qrisTotalPayable">Rp 0</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:4px;">ID Transaksi: <b id="qrisOrderIdTxt" style="color:var(--text);">-</b></div>
+                    <div class="prc-cd-pill"><i class="fas fa-RegClock fa-clock"></i> <span id="qrisCountdownTxt">05:00</span></div>
+                    <div class="prc-qris-box" id="qrisImgContainer">
+                        <img id="qrisCodeImg" src="" alt="QRIS Hidz Store">
+                        <div class="prc-qris-exp-mask">
+                            <i class="fas fa-ban" style="font-size:28px;margin-bottom:6px;"></i>
+                            <span>KEDALUWARSA</span>
+                            <span style="font-size:10px;font-family:'Space Grotesk',sans-serif;color:#fca5a5;margin-top:4px;font-weight:700;">Batas waktu 5 menit telah habis</span>
+                        </div>
                     </div>
-                </div>
-                <div class="prc-qris-box" id="qrisImgContainer" oncontextmenu="event.preventDefault();return false;">
-                    <img id="qrisCodeImg" src="" alt="QRIS Midtrans" draggable="false">
-                </div>
-                <div style="text-align:center;font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">
-                    Scan kode QR menggunakan GoPay, DANA, OVO, ShopeePay, LinkAja, atau aplikasi m-banking berlogo QRIS.
-                </div>
-                <div id="qrisStatusFeedback" style="text-align:center;font-size:11.5px;font-weight:800;color:var(--primary);margin-bottom:10px;">
-                    Menunggu pembayaran QRIS...
-                </div>
-                <div style="display:flex;flex-direction:column;gap:8px;">
-                    <button type="button" class="btn-action primary" id="qrisCheckBtn" style="width:100%;padding:12px;" onclick="window.manualCheckVipOrder()">
-                        <i class="fas fa-sync-alt"></i> CEK TRANSAKSI
-                    </button>
-                    <button type="button" class="btn-action primary" id="qrisRecreateBtn" style="width:100%;padding:12px;display:none;background:#f59e0b;" onclick="window.recreateExpiredVipOrder()">
-                        <i class="fas fa-redo"></i> BUAT QRIS BARU
-                    </button>
-                    <button type="button" class="btn-action" id="qrisCancelBtn" style="width:100%;padding:10px;" onclick="window.cancelActiveVipOrder()">
-                        Batalkan Pesanan
-                    </button>
+                    <div style="font-size:11px;font-weight:700;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
+                        Scan kode QR menggunakan GoPay, DANA, OVO, ShopeePay, LinkAja, atau aplikasi m-banking berlogo QRIS.
+                    </div>
+                    <div id="qrisStatusFeedback" style="font-size:11.5px;font-weight:800;color:var(--primary);margin-bottom:10px;min-height:18px;">Menunggu pembayaran...</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <button type="button" class="btn-action primary" id="qrisCheckBtn" style="width:100%;padding:12px;" onclick="window.manualCheckVipOrder()">
+                            <i class="fas fa-sync-alt"></i> CEK TRANSAKSI
+                        </button>
+                        <button type="button" class="btn-action primary" id="qrisRecreateBtn" style="width:100%;padding:12px;display:none;" onclick="window.recreateExpiredVipOrder()">
+                            <i class="fas fa-redo"></i> Buat QRIS Baru
+                        </button>
+                        <button type="button" class="btn-action secondary" id="qrisCancelBtn" style="width:100%;padding:11px;" onclick="window.cancelActiveVipOrder()">
+                            Batalkan Pesanan
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
 
             <!-- Halaman TRANSAKSI (Bukti Pembelian VIP & Unduh PNG) -->
             <div class="ann-overlay" id="vipReceiptOverlay" style="z-index:340;">
@@ -10337,15 +10302,30 @@
                 document.getElementById('vipQrisModal').classList.add('open');
                 document.getElementById('qrisTotalPayable').textContent = fmtRp(order.totalAmount);
                 document.getElementById('qrisOrderIdTxt').textContent = order.orderId;
+
+                var box = document.getElementById('qrisImgContainer');
+                if (box) {
+                    box.oncontextmenu = function (e) { if (e && e.preventDefault) e.preventDefault(); return false; };
+                    box.style.webkitTouchCallout = 'none';
+                    box.style.userSelect = 'none';
+                }
+
                 var img = document.getElementById('qrisCodeImg');
                 if (img) {
-                    var fbQr = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=' + encodeURIComponent(order.qrString || order.orderId);
+                    // Render full matriks QRIS murni dari qrString resmi Midtrans (identik dengan Foto Kedua)
+                    var fullQrMatrix = 'https://api.qrserver.com/v1/create-qr-code/?size=460x460&margin=0&ecc=M&data=' + encodeURIComponent(order.qrString || order.orderId);
                     img.className = '';
-                    img.style.cursor = 'default';
+                    img.draggable = false;
                     img.onclick = null;
                     img.oncontextmenu = function (e) { if (e && e.preventDefault) e.preventDefault(); return false; };
-                    img.src = order.qrImageUrl || fbQr;
-                    img.onerror = function () { img.onerror = null; img.src = fbQr; };
+                    img.style.pointerEvents = 'none';
+                    img.style.webkitTouchCallout = 'none';
+                    img.style.userSelect = 'none';
+                    img.src = fullQrMatrix;
+                    img.onerror = function () {
+                        img.onerror = null;
+                        if (order.qrImageUrl) img.src = order.qrImageUrl;
+                    };
                 }
                 updateQrisModalStateUI();
                 startQrisTimers();
@@ -10474,7 +10454,6 @@
                 stopQrisTimers();
             };
 
-            // Pulihkan otomatis tampilan QRIS saat halaman di-refresh atau tab dibuka kembali
             function restorePendingQrisSession() {
                 var s = getSess();
                 if (!s || !s.username || s.role === 'admin') return;
