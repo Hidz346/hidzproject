@@ -10050,11 +10050,13 @@
                     var ov = document.getElementById('pricingOverlay');
                     if (!ov || !ov.classList.contains('open') || !_appliedVoucher || document.visibilityState === 'hidden') return;
                     vipApi('/api/vip/voucher-check', { code: _appliedVoucher.code, planId: _appliedVoucher.planId, silentPoll: true }).then(function (res) {
-                        if (!res || !res.ok || !res.voucher) {
+                        /* Gagal sementara (kena batas percobaan, DB error, auth) bukan berarti voucher dicabut:
+                           yang dihapus hanya kalau server menjawab voucher-nya sendiri sudah tidak berlaku. */
+                        if (res && res.ok && res.voucher) {
+                            _appliedVoucher = res.voucher; renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI();
+                        } else if (res && res.ok === false && !res.locked && /^(not_found|expired|wrong_plan)$/.test(res.reason || '')) {
                             _appliedVoucher = null; renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI();
                             showHzToast('Voucher tidak lagi berlaku, harga kembali normal.');
-                        } else {
-                            _appliedVoucher = res.voucher; renderVoucherBanner(); renderPlansGrid(); if (_selectedPlan) updateCheckoutSummaryUI();
                         }
                     }).catch(function () {});
                 }, 10000);
@@ -10062,7 +10064,6 @@
             window.openPricingSheet = function () {
                 var s = getSess(); if (!s || !s.username) { showHzToast('Silakan login terlebih dahulu'); return; }
                 var ov = document.getElementById('pricingOverlay'); if (ov) ov.classList.add('open');
-                try { history.pushState({ hzModal: 'pricing' }, ''); } catch (e) {}
                 window._prcRefreshHeaderLive(); renderPlansGrid(); startVoucherPolling();
                 vipApi('/api/vip/plans', {}).then(function (res) { if (res && res.ok && Array.isArray(res.plans)) { _plans = res.plans; renderPlansGrid(); } }).catch(function () {});
             };
@@ -10192,16 +10193,19 @@
                     if (_activeOrder.status === 'SUCCESS') {
                         stopQrisTimers(); window.closeVipQrisModal();
                         notifyOnce(_activeOrder.orderId, 'success', 'Pembayaran berhasil! Akun kamu sekarang VIP.');
-                        var cur = getSess(); cur.role = 'vip';
-                        if (_activeOrder.afterSnapshot && _activeOrder.afterSnapshot.expiresAt) cur.expiresAt = _activeOrder.afterSnapshot.expiresAt;
-                        if (_activeOrder.afterSnapshot && _activeOrder.afterSnapshot.durationLabel) cur.durationLabel = _activeOrder.afterSnapshot.durationLabel;
-                        localStorage.setItem('hidz_session', JSON.stringify(cur));
-                        try { rebuildUIPreserveScroll(); buildHamburgerMenu(); } catch (e) {}
-                        window._prcRefreshHeaderLive(); window.openVipReceipt(_activeOrder); return;
+                        syncSessionAfterPayment(); window.openVipReceipt(_activeOrder); return;
                     }
                     if (_activeOrder.status === 'EXPIRED' || _activeOrder.status === 'CANCELLED') { updateQrisModalStateUI(); return; }
                     if (isManual) showHzToast('Pembayaran belum diterima, silakan selesaikan scan QRIS');
                 }).catch(function () { if (isManual && chk) { chk.disabled = false; chk.innerHTML = '<i class="fas fa-sync-alt"></i> CEK TRANSAKSI'; } });
+            }
+            /* Role & masa aktif baru disimpan oleh pengecek sesi bawaan (_checkSessionValidity ->
+               _syncSessionDuration), karena hanya di situ timer auto-logout dipasang ulang. Kalau sesi
+               ditulis langsung dari sini, timer lama tetap jalan dan akun yang baru bayar bisa ke-logout
+               tepat saat masa aktif lamanya habis. Di sini cukup memicu pengecekan itu sekarang juga. */
+            function syncSessionAfterPayment() {
+                var fire = function () { try { document.dispatchEvent(new Event('visibilitychange')); } catch (e) {} };
+                fire(); setTimeout(fire, 4000);
             }
             window.manualCheckVipOrder = function () { pollOrderStatus(true); };
             window.recreateExpiredVipOrder = function () {
