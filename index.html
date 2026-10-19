@@ -10146,7 +10146,7 @@
                 var img = document.getElementById('qrisCodeImg');
                 if (img) {
                     var fbQr = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(order.qrString || order.orderId);
-                    img.src = order.qrImageUrl || fbQr; img.onerror = function () { img.onerror = null; img.src = fbQr; };
+                    img.src = order.qrImageUrl || fbQr; img.onerror = function () { img.onerror = null; img.src = fbQr; }; img.style.cursor = "pointer"; img.onclick = function () { var u = order.qrImageUrl || img.src || ""; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(u).then(function () { showHzToast("URL QRIS berhasil disalin!"); }); } else { var ta = document.createElement("textarea"); ta.value = u; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); showHzToast("URL QRIS berhasil disalin!"); } };
                 }
                 updateQrisModalStateUI(); startQrisTimers();
             }
