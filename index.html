@@ -1731,6 +1731,14 @@
                 transform: translate(4px, 4px) !important;
                 box-shadow: 1px 1px 0px var(--border) !important;
             }
+            .btn-action:disabled {
+                opacity: 0.75;
+                cursor: default;
+            }
+            .btn-action:disabled:active {
+                transform: none !important;
+                box-shadow: 5px 5px 0px var(--border) !important;
+            }
 
             /* Y2K Detail Overlay */
             .detail-img {
@@ -2343,6 +2351,14 @@
             .btn-logout-profile:active {
                 transform: translate(4px,4px);
                 box-shadow: 0px 0px 0px #ef4444;
+            }
+            .btn-logout-profile:disabled {
+                opacity: 0.75;
+                cursor: default;
+            }
+            .btn-logout-profile:disabled:active {
+                transform: none;
+                box-shadow: 4px 4px 0px #ef4444;
             }
             .btn-install-profile {
                 width: 100%;
@@ -5338,7 +5354,7 @@
                     <div style="font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px;">Kode Voucher Diskon</div>
                     <div class="prc-voucher-row" style="margin-bottom:10px;">
                         <input type="text" class="prc-voucher-inp" id="chkVoucherInput" placeholder="Masukkan kode (opsional)" maxlength="20" autocomplete="off">
-                        <button type="button" class="btn-action secondary" style="flex:0 0 auto;width:auto;padding:10px 12px;font-size:12px;" onclick="window.applyCheckoutVoucher()">Terapkan</button>
+                        <button type="button" class="btn-action secondary" id="chkVoucherApplyBtn" style="flex:0 0 auto;width:auto;padding:10px 12px;font-size:12px;" onclick="window.applyCheckoutVoucher()">Terapkan</button>
                     </div>
                     <div class="prc-summary-box">
                         <div class="prc-sum-row"><span>Paket &amp; Durasi</span><span id="chkSumPlan" style="color:var(--text);font-weight:900;">-</span></div>
@@ -6604,6 +6620,20 @@
                 el.classList.add("show");
                 clearTimeout(showHzToast._t);
                 showHzToast._t = setTimeout(() => el.classList.remove("show"), 2200);
+            }
+
+            // Tombol jadi spinner + "MEMUAT" selama menunggu server; hzBtnBusy(btn, false) mengembalikan isi aslinya
+            function hzBtnBusy(btn, busy) {
+                if (!btn) return;
+                if (busy) {
+                    if (btn.dataset.idleHtml === undefined) btn.dataset.idleHtml = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> MEMUAT';
+                } else if (btn.dataset.idleHtml !== undefined) {
+                    btn.innerHTML = btn.dataset.idleHtml;
+                    delete btn.dataset.idleHtml;
+                    btn.disabled = false;
+                }
             }
 
             // Salin link project ke clipboard, dengan fallback untuk webview lama
@@ -8637,6 +8667,7 @@
             /* ---- Logout (pause durasi jika ada, hapus sesi device Firebase +
                localStorage, lalu reload) ---- */
             window.hidzLogout = function() {
+                hzBtnBusy(document.querySelector('.btn-logout-profile'), true);
                 _pauseAndLogout();
             };
 
@@ -10013,7 +10044,7 @@
             ];
             var ACTIVE_QRIS_STORAGE_KEY = 'hidz_vip_active_qris';
             var _plans = DEFAULT_PLANS.slice(), _appliedVoucher = null, _selectedPlan = null;
-            var _activeOrder = null, _currentReceipt = null, _txHistoryCache = [];
+            var _activeOrder = null, _currentReceipt = null, _txHistoryCache = [], _planBusyId = null;
             var _serverTimeOffset = 0, _voucherPollTimer = null, _qrisPollTimer = null, _qrisCdTimer = null, _notified = {};
 
             function getSess() {
@@ -10147,8 +10178,8 @@
                         (hasV ? '<span class="card-new-badge" style="position:static;background:#22c55e;color:#fff;">-' + esc(_appliedVoucher.percent) + '%</span>' : '') + '</div>' +
                         '<div class="prc-plan-name">' + esc(p.label) + '</div><div class="prc-plan-desc">Masa aktif ' + esc(p.days) + ' hari penuh</div><div style="margin-top:8px;">' +
                         (hasV ? '<div class="prc-price-old">' + fmtRp(p.price) + '</div>' : '') + '<div class="prc-price-now">' + fmtRp(fp) + '</div></div></div>' +
-                        '<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;" onclick="window.selectVipPlan(\'' + p.id + '\')"') + '>' +
-                        (isAdmin ? 'Khusus User/VIP' : 'Pilih Paket') + '</button></div>';
+                        '<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;"' + (_planBusyId ? ' disabled' : ' onclick="window.selectVipPlan(\'' + p.id + '\')"')) + '>' +
+                        (isAdmin ? 'Khusus User/VIP' : (_planBusyId === p.id ? '<i class="fas fa-spinner fa-spin"></i> MEMUAT' : 'Pilih Paket')) + '</button></div>';
                 });
                 grid.innerHTML = html;
             }
@@ -10216,16 +10247,16 @@
                 var inp = document.getElementById('prcVoucherInput'), code = inp ? inp.value.trim().toUpperCase() : '';
                 if (!code) { showHzToast('Masukkan kode voucher terlebih dahulu'); return; }
                 var btn = document.getElementById('prcVoucherApplyBtn');
-                if (btn) { btn.disabled = true; btn.textContent = '...'; }
+                hzBtnBusy(btn, true);
                 vipApi('/api/vip/voucher-check', { code: code }).then(function (res) {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Terapkan'; }
+                    hzBtnBusy(btn, false);
                     if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Kode voucher tidak valid'); return; }
                     _appliedVoucher = res.voucher;
                     renderVoucherBanner();
                     renderPlansGrid();
                     showHzToast('Voucher ' + _appliedVoucher.code + ' diterapkan untuk paket ' + _appliedVoucher.planLabel);
                 }).catch(function () {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Terapkan'; }
+                    hzBtnBusy(btn, false);
                     showHzToast('Gagal memeriksa voucher');
                 });
             };
@@ -10261,11 +10292,18 @@
             }
 
             window.selectVipPlan = function (planId) {
+                if (_planBusyId) return;
                 if (getSess().role === 'admin') { showHzToast('Role admin tidak dapat membeli paket VIP'); return; }
                 var p = _plans.filter(function (x) { return x.id === planId; })[0];
                 if (!p) return;
                 _selectedPlan = p;
+                /* Keadaan "memuat" disimpan di _planBusyId (bukan di elemen tombol) karena grid paket
+                   dirender ulang tiap voucher berubah, dan tombolnya harus tetap memuat selama itu. */
+                _planBusyId = planId;
+                renderPlansGrid();
                 vipApi('/api/vip/order-status', { orderId: '' }).then(function (res) {
+                    _planBusyId = null;
+                    renderPlansGrid();
                     if (res && res.ok && res.order && res.order.status === 'PENDING' && serverNow() < Number(res.order.expiresAt)) {
                         openQrisModalWithOrder(res.order);
                         showHzToast('Melanjutkan transaksi QRIS yang masih aktif');
@@ -10274,6 +10312,8 @@
                     updateCheckoutSummaryUI();
                     document.getElementById('vipCheckoutModal').classList.add('open');
                 }).catch(function () {
+                    _planBusyId = null;
+                    renderPlansGrid();
                     updateCheckoutSummaryUI();
                     document.getElementById('vipCheckoutModal').classList.add('open');
                 });
@@ -10287,7 +10327,10 @@
                 if (!_selectedPlan) return;
                 var code = (document.getElementById('chkVoucherInput').value || '').trim().toUpperCase();
                 if (!code) { window.removePricingVoucher(); return; }
+                var btn = document.getElementById('chkVoucherApplyBtn');
+                hzBtnBusy(btn, true);
                 vipApi('/api/vip/voucher-check', { code: code, planId: _selectedPlan.id }).then(function (res) {
+                    hzBtnBusy(btn, false);
                     if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Voucher tidak valid'); return; }
                     _appliedVoucher = res.voucher;
                     document.getElementById('prcVoucherInput').value = _appliedVoucher.code;
@@ -10295,16 +10338,25 @@
                     renderPlansGrid();
                     updateCheckoutSummaryUI();
                     showHzToast('Voucher diterapkan!');
-                }).catch(function () { showHzToast('Gagal memvalidasi voucher'); });
+                }).catch(function () { hzBtnBusy(btn, false); showHzToast('Gagal memvalidasi voucher'); });
             };
 
-            window.createVipQrisOrder = function () {
+            window.createVipQrisOrder = function (fromRecreate) {
                 if (!_selectedPlan) return;
-                var btn = document.getElementById('chkPayBtn');
-                if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Membuat QRIS...'; }
+                /* "Buat QRIS Baru" jalan dari modal QRIS yang sama, jadi tombol yang memuat adalah
+                   tombolnya sendiri; tombol bayar di checkout hanya untuk alur pembelian biasa. */
+                var recreate = (fromRecreate === true);
+                var btn = document.getElementById(recreate ? 'qrisRecreateBtn' : 'chkPayBtn');
+                function setWait(on) {
+                    if (recreate) { hzBtnBusy(btn, on); return; }
+                    if (!btn) return;
+                    btn.disabled = on;
+                    btn.innerHTML = on ? '<i class="fas fa-spinner fa-spin"></i> Membuat QRIS...' : '<i class="fas fa-qrcode"></i> Bayar dengan QRIS';
+                }
+                setWait(true);
                 var vCode = (_appliedVoucher && _appliedVoucher.planId === _selectedPlan.id) ? _appliedVoucher.code : '';
                 vipApi('/api/vip/order-create', { planId: _selectedPlan.id, voucherCode: vCode }).then(function (res) {
-                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-qrcode"></i> Bayar dengan QRIS'; }
+                    setWait(false);
                     if (!res || !res.ok || !res.order) {
                         if (res && res.reason === 'voucher_invalid') {
                             _appliedVoucher = null;
@@ -10318,7 +10370,7 @@
                     window.closeVipCheckoutModal();
                     openQrisModalWithOrder(res.order);
                 }).catch(function () {
-                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-qrcode"></i> Bayar dengan QRIS'; }
+                    setWait(false);
                     showHzToast('Gagal terhubung ke server pembayaran');
                 });
             };
@@ -10495,20 +10547,42 @@
                 if (!_activeOrder) return;
                 var p = _plans.filter(function (x) { return x.id === _activeOrder.planId; })[0];
                 if (p) _selectedPlan = p;
-                window.closeVipQrisModal();
-                window.createVipQrisOrder();
+                window.createVipQrisOrder(true);
             };
 
             window.cancelActiveVipOrder = function () {
+                var btn = document.getElementById('qrisCancelBtn');
+                if (btn && btn.disabled) return;
                 clearActiveQrisCache();
                 if (!_activeOrder) { window.closeVipQrisModal(); return; }
                 var id = _activeOrder.orderId;
+                hzBtnBusy(btn, true);
                 stopQrisTimers();
-                vipApi('/api/vip/order-cancel', { orderId: id }).then(function () {
+                /* Kalau pembatalan tidak jadi (koneksi putus, atau ternyata sudah dibayar), pesanan yang
+                   masih aktif harus kembali dipantau; kalau tidak, halaman QRIS terlihat hidup tapi diam. */
+                function resumeIfPending() {
+                    if (_activeOrder && _activeOrder.status === 'PENDING') {
+                        saveActiveQrisCache(_activeOrder);
+                        startQrisTimers();
+                    }
+                }
+                vipApi('/api/vip/order-cancel', { orderId: id }).then(function (res) {
+                    hzBtnBusy(btn, false);
+                    var st = (res && res.ok && res.order) ? res.order.status : '';
+                    if (st && st !== 'CANCELLED') {
+                        /* Pesanan sudah berubah di server (mis. dibayar tepat sebelum dibatalkan) */
+                        applyOrderState(res.order);
+                        resumeIfPending();
+                        return;
+                    }
                     _activeOrder = null;
                     window.closeVipQrisModal();
                     showHzToast('Pesanan QRIS dibatalkan');
-                }).catch(function () { window.closeVipQrisModal(); });
+                }).catch(function () {
+                    hzBtnBusy(btn, false);
+                    resumeIfPending();
+                    showHzToast('Gagal membatalkan pesanan, coba lagi');
+                });
             };
 
             /* Dipanggil tombol tutup (X) dan alur lain yang menyelesaikan pesanan. Refresh atau menutup tab
