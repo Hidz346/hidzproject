@@ -2148,6 +2148,14 @@
                 transform: translate(4px,4px);
                 box-shadow: 1px 1px 0px rgba(255,255,255,0.08);
             }
+            .lc-btn-login:disabled {
+                opacity: 0.75;
+                cursor: default;
+            }
+            .lc-btn-login:disabled:active {
+                transform: none;
+                box-shadow: 5px 5px 0px rgba(255,255,255,0.12);
+            }
             .lc-register-link {
                 text-align: center;
                 margin-top: 14px;
@@ -8017,6 +8025,19 @@
             var LOGIN_LOCKOUT_KEY  = 'hidz_login_lockout_until';
             var LOGIN_TIER_KEY     = 'hidz_login_lockout_tier';
             var _loginCooldownTimer = null;
+            var _loginBusy = false;
+
+            /* Tombol LOGIN jadi "MEMUAT" selama kredensial & status akun dicek,
+               supaya jelas bahwa prosesnya sedang berjalan. */
+            function _setLoginBusy(busy) {
+                _loginBusy = busy;
+                var btn = document.getElementById('btnLogin');
+                if (!btn) return;
+                btn.disabled = busy;
+                btn.innerHTML = busy
+                    ? '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>MEMUAT'
+                    : '<i class="fas fa-arrow-right" style="margin-right:6px;"></i>LOGIN';
+            }
 
             function _loginLockoutRemainingMs() {
                 var until = parseInt(localStorage.getItem(LOGIN_LOCKOUT_KEY) || '0', 10);
@@ -8029,7 +8050,7 @@
                 localStorage.removeItem(LOGIN_TIER_KEY);
                 clearTimeout(_loginCooldownTimer);
                 var btn = document.getElementById('btnLogin');
-                if (btn) btn.disabled = false;
+                if (btn && !_loginBusy) btn.disabled = false;
             }
             function _pushBruteForceAlert(username, cooldownSec) {
                 try {
@@ -8098,6 +8119,7 @@
             }
 
             function doLogin() {
+                if (_loginBusy) return;
                 var uEl   = document.getElementById('lc-username');
                 var pEl   = document.getElementById('lc-password');
                 var errEl = document.getElementById('loginError');
@@ -8120,6 +8142,7 @@
                    maupun VIP/USER lewat jalur yang sama. Server yang buka
                    datanya, browser cuma dapat akun yang berhasil cocok (itu pun
                    tanpa password), bukan seluruh daftar akun sekaligus. -- */
+                _setLoginBusy(true);
                 fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -8132,6 +8155,7 @@
                             acc.password = password; /* hanya dipakai oleh endpoint server yang sudah ada */
                             _signInFirebaseToken(res.firebaseToken, function (ok) {
                                 if (!ok) {
+                                    _setLoginBusy(false);
                                     errEl.textContent = 'Autentikasi keamanan gagal. Coba login kembali.';
                                     errEl.style.display = 'block';
                                     return;
@@ -8139,17 +8163,21 @@
                                 _proceedAfterCredentialsValid(acc, errEl);
                             });
                         } else if (res && res.locked) {
+                            _setLoginBusy(false);
                             _showServerLockCountdown(errEl, res.retryAfterSec);
                         } else if (res && res.error) {
+                            _setLoginBusy(false);
                             errEl.textContent = res.code === 'FIREBASE_AUTH_CONFIG'
                                 ? 'Konfigurasi autentikasi keamanan server belum lengkap. Hubungi admin.'
                                 : 'Gagal terhubung ke server. Periksa koneksi internet kamu, lalu coba lagi.';
                             errEl.style.display = 'block';
                         } else {
+                            _setLoginBusy(false);
                             _rejectLoginAttempt(username, errEl);
                         }
                     })
                     .catch(function () {
+                        _setLoginBusy(false);
                         errEl.textContent = 'Gagal terhubung ke server. Periksa koneksi internet kamu, lalu coba lagi.';
                         errEl.style.display = 'block';
                     });
@@ -8194,6 +8222,7 @@
                /api/login — baik akun admin maupun VIP/USER. */
             function _proceedAfterCredentialsValid(found, errEl) {
                 if (found.expiresAt && Date.now() > found.expiresAt) {
+                    _setLoginBusy(false);
                     errEl.textContent = 'Akses sudah berakhir! Hubungi admin.';
                     errEl.style.display = 'block';
                     return;
@@ -8218,6 +8247,7 @@
                                         /* Catat percobaan login ke Security Alerts untuk notifikasi di panel admin */
                                         _pushSecurityAlert(found.id, _adminDevId, 'Percobaan login ke akun admin ditolak — perangkat lain sudah aktif.');
                                         /* Tampilkan peringatan banned overlay — login ditolak untuk sesi ini */
+                                        _setLoginBusy(false);
                                         _showAdminBannedOverlay();
                                         return;
                                     }
@@ -8252,6 +8282,7 @@
 
                             if (banVal && banVal.banned === true) {
                                 _pushSecurityAlert(found.id, _devIdToCheck, 'Percobaan login ditolak — akun sedang diblokir.');
+                                _setLoginBusy(false);
                                 if (typeof window._cancelIntro === 'function') window._cancelIntro();
                                 var bEl = document.getElementById('bannedOverlay');
                                 var tEl = document.getElementById('bannedTitle');
@@ -8266,6 +8297,7 @@
 
                             if (blockVal && blockVal.blockedAt) {
                                 _pushSecurityAlert(found.id, _devIdToCheck, 'Percobaan login ditolak — perangkat ini sudah diblokir (melebihi batas maksimum perangkat).');
+                                _setLoginBusy(false);
                                 errEl.innerHTML =
                                     '<i class="fas fa-ban" style="margin-right:6px;"></i>' +
                                     '<b>Perangkat Diblokir!</b><br>' +
@@ -8440,7 +8472,7 @@
                 var ov = document.getElementById('loginOverlay');
                 if (ov) {
                     ov.classList.add('hide');
-                    setTimeout(function() { ov.style.display = 'none'; }, 480);
+                    setTimeout(function() { ov.style.display = 'none'; _setLoginBusy(false); }, 480);
                 }
             }
 
