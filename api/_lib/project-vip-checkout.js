@@ -170,16 +170,18 @@ async function fulfillOrderSuccess(orderId, settlementMeta) {
     if (order.voucherCode) {
         var vCode = String(order.voucherCode).toUpperCase();
         var vData = await db.fetchPath('hidz_vouchers/' + vCode);
+        /* Voucher yang sudah dihapus admin (beserta riwayatnya) tidak dicatat lagi, supaya riwayat
+           yatim tidak muncul kembali di panel admin. Pesanannya sendiri tetap menyimpan kode vouchernya. */
         if (vData && typeof vData === 'object') {
             vData.usedCount = (Number(vData.usedCount) || 0) + 1; vData.lastUsedAt = activatedAt;
             await db.setPath('hidz_vouchers/' + vCode, vData);
+            var histId = 'vh_' + activatedAt + '_' + crypto.randomBytes(3).toString('hex');
+            await db.setPath('hidz_voucher_history/' + histId, {
+                id: histId, code: vCode, action: 'used', username: order.username, orderId: order.orderId,
+                planId: order.planId, planLabel: order.planLabel, discountAmount: order.discountAmount || 0,
+                finalPrice: order.totalAmount, actor: order.username, timestamp: activatedAt, snapshot: vData
+            });
         }
-        var histId = 'vh_' + activatedAt + '_' + crypto.randomBytes(3).toString('hex');
-        await db.setPath('hidz_voucher_history/' + histId, {
-            id: histId, code: vCode, action: 'used', username: order.username, orderId: order.orderId,
-            planId: order.planId, planLabel: order.planLabel, discountAmount: order.discountAmount || 0,
-            finalPrice: order.totalAmount, actor: order.username, timestamp: activatedAt, snapshot: vData || { code: vCode }
-        });
     }
     return { ok: true, order: finalOrder };
 }

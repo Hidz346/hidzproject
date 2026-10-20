@@ -5410,6 +5410,9 @@
                         <button type="button" class="btn-action primary" id="qrisRecreateBtn" style="width:100%;padding:12px;display:none;" onclick="window.recreateExpiredVipOrder()">
                             <i class="fas fa-redo"></i> Buat QRIS Baru
                         </button>
+                        <button type="button" class="btn-action secondary" id="qrisDownloadBtn" style="width:100%;padding:11px;" onclick="window.downloadVipQrisPng()">
+                            <i class="fas fa-download"></i> Unduh QRIS
+                        </button>
                         <button type="button" class="btn-action secondary" id="qrisCancelBtn" style="width:100%;padding:11px;" onclick="window.cancelActiveVipOrder()">
                             Batalkan Pesanan
                         </button>
@@ -10029,6 +10032,282 @@
             }
         </script>
     
+        <script id="hidzQrEncoderScript">
+            /* Pembuat kode QR (mode byte, koreksi error level M) untuk unduhan QRIS.
+               Dijalankan lokal di browser: tidak butuh layanan luar dan gambarnya tidak terkena batasan CORS.
+               Pakai: HidzQr.encode('teks') -> { size: n, modules: [[true/false, ...], ...] } */
+            (function (root) {
+                'use strict';
+
+                /* Per versi 1..40 (indeks 0 tidak dipakai), khusus level M */
+                var ECC_PER_BLOCK = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28];
+                var NUM_BLOCKS = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23, 25, 26, 28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49];
+                var FORMAT_LEVEL_M = 0;
+
+                /* Aritmetika GF(256) dengan polinomial 0x11D */
+                var EXP = [], LOG = [];
+                (function () {
+                    var x = 1, i;
+                    for (i = 0; i < 255; i++) {
+                        EXP[i] = x;
+                        LOG[x] = i;
+                        x <<= 1;
+                        if (x & 0x100) x ^= 0x11D;
+                    }
+                    for (i = 255; i < 510; i++) EXP[i] = EXP[i - 255];
+                })();
+
+                function gfMul(a, b) {
+                    return (a && b) ? EXP[LOG[a] + LOG[b]] : 0;
+                }
+
+                function rsDivisor(degree) {
+                    var coef = [], i, j, root = 1;
+                    for (i = 0; i < degree - 1; i++) coef.push(0);
+                    coef.push(1);
+                    for (i = 0; i < degree; i++) {
+                        for (j = 0; j < coef.length; j++) {
+                            coef[j] = gfMul(coef[j], root);
+                            if (j + 1 < coef.length) coef[j] ^= coef[j + 1];
+                        }
+                        root = gfMul(root, 2);
+                    }
+                    return coef;
+                }
+
+                function rsRemainder(data, divisor) {
+                    var rem = divisor.map(function () { return 0; });
+                    data.forEach(function (b) {
+                        var factor = b ^ rem.shift();
+                        rem.push(0);
+                        divisor.forEach(function (c, i) { rem[i] ^= gfMul(c, factor); });
+                    });
+                    return rem;
+                }
+
+                function alignPositions(ver) {
+                    if (ver === 1) return [];
+                    var n = Math.floor(ver / 7) + 2;
+                    var step = Math.floor((ver * 8 + n * 3 + 5) / (n * 4 - 4)) * 2;
+                    var pos = [6];
+                    for (var p = ver * 4 + 10; pos.length < n; p -= step) pos.splice(1, 0, p);
+                    return pos;
+                }
+
+                function rawModuleCount(ver) {
+                    var n = (16 * ver + 128) * ver + 64;
+                    if (ver >= 2) {
+                        var a = Math.floor(ver / 7) + 2;
+                        n -= (25 * a - 10) * a - 55;
+                        if (ver >= 7) n -= 36;
+                    }
+                    return n;
+                }
+
+                function dataCapacity(ver) {
+                    return Math.floor(rawModuleCount(ver) / 8) - ECC_PER_BLOCK[ver] * NUM_BLOCKS[ver];
+                }
+
+                function bit(v, i) { return ((v >>> i) & 1) !== 0; }
+
+                /* Bit data: indikator mode byte, jumlah karakter, isi, terminator, lalu padding 0xEC/0x11 */
+                function buildDataCodewords(bytes, ver) {
+                    var bits = [];
+                    function push(val, len) { for (var i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); }
+                    push(4, 4);
+                    push(bytes.length, ver < 10 ? 8 : 16);
+                    bytes.forEach(function (b) { push(b, 8); });
+                    var capBits = dataCapacity(ver) * 8;
+                    push(0, Math.min(4, capBits - bits.length));
+                    push(0, (8 - bits.length % 8) % 8);
+                    var out = [], i;
+                    for (i = 0; i < bits.length; i += 8) {
+                        out.push(bits.slice(i, i + 8).reduce(function (acc, b) { return (acc << 1) | b; }, 0));
+                    }
+                    for (var pad = 0xEC; out.length < dataCapacity(ver); pad ^= 0xEC ^ 0x11) out.push(pad);
+                    return out;
+                }
+
+                /* Pecah ke blok, hitung koreksi error Reed-Solomon, lalu selang-seling antarblok */
+                function interleave(data, ver) {
+                    var nBlocks = NUM_BLOCKS[ver], eccLen = ECC_PER_BLOCK[ver];
+                    var raw = Math.floor(rawModuleCount(ver) / 8);
+                    var nShort = nBlocks - raw % nBlocks;
+                    var shortLen = Math.floor(raw / nBlocks);
+                    var divisor = rsDivisor(eccLen), blocks = [], k = 0, i, j;
+                    for (i = 0; i < nBlocks; i++) {
+                        var dat = data.slice(k, k + shortLen - eccLen + (i < nShort ? 0 : 1));
+                        k += dat.length;
+                        var ecc = rsRemainder(dat, divisor);
+                        if (i < nShort) dat.push(0);
+                        blocks.push(dat.concat(ecc));
+                    }
+                    var out = [];
+                    for (i = 0; i < blocks[0].length; i++) {
+                        for (j = 0; j < nBlocks; j++) {
+                            if (i !== shortLen - eccLen || j >= nShort) out.push(blocks[j][i]);
+                        }
+                    }
+                    return out;
+                }
+
+                function encode(text) {
+                    var bytes = Array.prototype.slice.call(new TextEncoder().encode(String(text)));
+                    var ver = 1;
+                    while (ver <= 40 && bytes.length + (ver < 10 ? 2 : 3) > dataCapacity(ver)) ver++;
+                    if (ver > 40) throw new Error('Data terlalu panjang untuk kode QR');
+
+                    var size = ver * 4 + 17, x, y;
+                    var modules = [], isFn = [];
+                    for (y = 0; y < size; y++) {
+                        modules.push([]); isFn.push([]);
+                        for (x = 0; x < size; x++) { modules[y].push(false); isFn[y].push(false); }
+                    }
+                    function setFn(px, py, dark) {
+                        if (px < 0 || py < 0 || px >= size || py >= size) return;
+                        modules[py][px] = dark;
+                        isFn[py][px] = true;
+                    }
+
+                    /* Pola tetap: garis waktu, tiga pola pencari, pola perataan */
+                    for (x = 0; x < size; x++) { setFn(x, 6, x % 2 === 0); setFn(6, x, x % 2 === 0); }
+                    [[3, 3], [size - 4, 3], [3, size - 4]].forEach(function (c) {
+                        for (var dy = -4; dy <= 4; dy++) {
+                            for (var dx = -4; dx <= 4; dx++) {
+                                var d = Math.max(Math.abs(dx), Math.abs(dy));
+                                setFn(c[0] + dx, c[1] + dy, d !== 2 && d !== 4);
+                            }
+                        }
+                    });
+                    var ap = alignPositions(ver);
+                    ap.forEach(function (ax, i) {
+                        ap.forEach(function (ay, j) {
+                            if ((i === 0 && j === 0) || (i === 0 && j === ap.length - 1) || (i === ap.length - 1 && j === 0)) return;
+                            for (var dy = -2; dy <= 2; dy++) {
+                                for (var dx = -2; dx <= 2; dx++) setFn(ax + dx, ay + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+                            }
+                        });
+                    });
+
+                    function drawFormat(mask) {
+                        var data = (FORMAT_LEVEL_M << 3) | mask, rem = data, i;
+                        for (i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+                        var bits = ((data << 10) | rem) ^ 0x5412;
+                        for (i = 0; i <= 5; i++) setFn(8, i, bit(bits, i));
+                        setFn(8, 7, bit(bits, 6));
+                        setFn(8, 8, bit(bits, 7));
+                        setFn(7, 8, bit(bits, 8));
+                        for (i = 9; i < 15; i++) setFn(14 - i, 8, bit(bits, i));
+                        for (i = 0; i < 8; i++) setFn(size - 1 - i, 8, bit(bits, i));
+                        for (i = 8; i < 15; i++) setFn(8, size - 15 + i, bit(bits, i));
+                        setFn(8, size - 8, true);
+                    }
+                    function drawVersion() {
+                        if (ver < 7) return;
+                        var rem = ver, i;
+                        for (i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1F25);
+                        var bits = (ver << 12) | rem;
+                        for (i = 0; i < 18; i++) {
+                            var a = size - 11 + i % 3, b = Math.floor(i / 3);
+                            setFn(a, b, bit(bits, i));
+                            setFn(b, a, bit(bits, i));
+                        }
+                    }
+                    drawFormat(0);
+                    drawVersion();
+
+                    /* Letakkan data zig-zag dari kanan-bawah */
+                    var codewords = interleave(buildDataCodewords(bytes, ver), ver), n = 0;
+                    for (var right = size - 1; right >= 1; right -= 2) {
+                        if (right === 6) right = 5;
+                        for (var vert = 0; vert < size; vert++) {
+                            for (var j = 0; j < 2; j++) {
+                                var cx = right - j;
+                                var cy = (((right + 1) & 2) === 0) ? size - 1 - vert : vert;
+                                if (!isFn[cy][cx] && n < codewords.length * 8) {
+                                    modules[cy][cx] = bit(codewords[n >>> 3], 7 - (n & 7));
+                                    n++;
+                                }
+                            }
+                        }
+                    }
+
+                    function applyMask(mask) {
+                        for (var yy = 0; yy < size; yy++) {
+                            for (var xx = 0; xx < size; xx++) {
+                                var flip;
+                                switch (mask) {
+                                    case 0: flip = (xx + yy) % 2 === 0; break;
+                                    case 1: flip = yy % 2 === 0; break;
+                                    case 2: flip = xx % 3 === 0; break;
+                                    case 3: flip = (xx + yy) % 3 === 0; break;
+                                    case 4: flip = (Math.floor(xx / 3) + Math.floor(yy / 2)) % 2 === 0; break;
+                                    case 5: flip = xx * yy % 2 + xx * yy % 3 === 0; break;
+                                    case 6: flip = (xx * yy % 2 + xx * yy % 3) % 2 === 0; break;
+                                    default: flip = ((xx + yy) % 2 + xx * yy % 3) % 2 === 0;
+                                }
+                                if (!isFn[yy][xx] && flip) modules[yy][xx] = !modules[yy][xx];
+                            }
+                        }
+                    }
+
+                    /* Skor penalti sesuai spesifikasi QR: runtun sewarna, blok 2x2, pola mirip pencari, keseimbangan gelap/terang */
+                    function penalty() {
+                        var score = 0, a, b, run, dark = 0;
+                        var PAT_A = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0], PAT_B = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+                        function line(get) {
+                            var s = 0, i;
+                            run = 1;
+                            for (i = 1; i < size; i++) {
+                                if (get(i) === get(i - 1)) run++;
+                                else { if (run >= 5) s += 3 + run - 5; run = 1; }
+                            }
+                            if (run >= 5) s += 3 + run - 5;
+                            for (i = 0; i + 11 <= size; i++) {
+                                var ma = true, mb = true;
+                                for (var k = 0; k < 11 && (ma || mb); k++) {
+                                    var v = get(i + k) ? 1 : 0;
+                                    if (v !== PAT_A[k]) ma = false;
+                                    if (v !== PAT_B[k]) mb = false;
+                                }
+                                if (ma) s += 40;
+                                if (mb) s += 40;
+                            }
+                            return s;
+                        }
+                        for (a = 0; a < size; a++) {
+                            score += line(function (i) { return modules[a][i]; });
+                            score += line(function (i) { return modules[i][a]; });
+                        }
+                        for (a = 0; a < size - 1; a++) {
+                            for (b = 0; b < size - 1; b++) {
+                                var c = modules[a][b];
+                                if (c === modules[a][b + 1] && c === modules[a + 1][b] && c === modules[a + 1][b + 1]) score += 3;
+                            }
+                        }
+                        for (a = 0; a < size; a++) for (b = 0; b < size; b++) if (modules[a][b]) dark++;
+                        var total = size * size;
+                        score += (Math.ceil(Math.abs(dark * 20 - total * 10) / total) - 1) * 10;
+                        return score;
+                    }
+
+                    var bestMask = 0, bestScore = Infinity, m;
+                    for (m = 0; m < 8; m++) {
+                        applyMask(m);
+                        drawFormat(m);
+                        var s = penalty();
+                        if (s < bestScore) { bestScore = s; bestMask = m; }
+                        applyMask(m);
+                    }
+                    applyMask(bestMask);
+                    drawFormat(bestMask);
+                    return { size: size, modules: modules, version: ver };
+                }
+
+                root.HidzQr = { encode: encode };
+            })(window);
+        </script>
+
         <script id="hidzVipPricingScript">
         (function () {
             'use strict';
@@ -10432,6 +10711,7 @@
                 var chk = document.getElementById('qrisCheckBtn');
                 var rec = document.getElementById('qrisRecreateBtn');
                 var can = document.getElementById('qrisCancelBtn');
+                var dl = document.getElementById('qrisDownloadBtn');
                 var fb = document.getElementById('qrisStatusFeedback');
                 if ((_activeOrder.status === 'EXPIRED' || serverNow() >= Number(_activeOrder.expiresAt)) && _activeOrder.status === 'PENDING') {
                     _activeOrder.status = 'EXPIRED';
@@ -10442,6 +10722,7 @@
                     chk.style.display = 'none';
                     rec.style.display = 'flex';
                     can.style.display = 'none';
+                    dl.style.display = 'none';
                     fb.style.color = '#ef4444';
                     fb.textContent = 'QRIS telah kedaluwarsa. Silakan buat QRIS baru.';
                     notifyOnce(_activeOrder.orderId, 'expired', 'Waktu pembayaran QRIS habis');
@@ -10450,6 +10731,7 @@
                     chk.style.display = 'flex';
                     rec.style.display = 'none';
                     can.style.display = 'flex';
+                    dl.style.display = 'flex';
                     fb.style.color = 'var(--primary)';
                     fb.textContent = 'Menunggu pembayaran QRIS...';
                 }
@@ -10548,6 +10830,146 @@
                 var p = _plans.filter(function (x) { return x.id === _activeOrder.planId; })[0];
                 if (p) _selectedPlan = p;
                 window.createVipQrisOrder(true);
+            };
+
+            /* ---- Unduh QRIS ----
+               Gambar PNG berisi QR, nominal, ID transaksi, dan batas waktu bayar, supaya bisa dipindai dari
+               galeri oleh aplikasi pembayaran. QR digambar lokal dari qrString lewat HidzQr, jadi tidak
+               bergantung pada layanan gambar luar dan tidak terhalang CORS. */
+            function fmtWibClock(ts) {
+                return new Date(Number(ts)).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).replace('.', ':');
+            }
+
+            function wrapCanvasText(ctx, text, maxWidth) {
+                var lines = [], cur = '';
+                String(text).split(' ').forEach(function (w) {
+                    var next = cur ? cur + ' ' + w : w;
+                    if (cur && ctx.measureText(next).width > maxWidth) { lines.push(cur); cur = w; } else { cur = next; }
+                });
+                if (cur) lines.push(cur);
+                return lines;
+            }
+
+            /* Perkecil font sampai teks muat di lebar yang tersedia (Orbitron cukup lebar) */
+            function fitCanvasFont(ctx, text, weight, family, size, maxWidth) {
+                for (; size > 20; size -= 2) {
+                    ctx.font = weight + ' ' + size + 'px ' + family;
+                    if (ctx.measureText(text).width <= maxWidth) return;
+                }
+            }
+
+            /* Font situs dimuat lazy oleh browser; tunggu sebentar supaya kanvas memakainya, tapi jangan menggantung */
+            function ensureQrisFonts() {
+                if (!document.fonts || !document.fonts.load) return Promise.resolve();
+                return Promise.race([
+                    Promise.all([document.fonts.load('900 40px Orbitron'), document.fonts.load('700 28px "Space Grotesk"')]),
+                    new Promise(function (resolve) { setTimeout(resolve, 1500); })
+                ]).catch(function () {});
+            }
+
+            /* Sumber QR: matriks lokal dari qrString; kalau tidak ada, gambar dari Midtrans (butuh header CORS) */
+            function loadQrisSource(order) {
+                if (order.qrString && window.HidzQr) {
+                    try { return Promise.resolve(window.HidzQr.encode(order.qrString)); } catch (e) {}
+                }
+                if (!order.qrImageUrl) return Promise.reject(new Error('qris-kosong'));
+                return new Promise(function (resolve, reject) {
+                    var im = new Image();
+                    im.crossOrigin = 'anonymous';
+                    im.onload = function () { resolve(im); };
+                    im.onerror = function () { reject(new Error('qris-gambar')); };
+                    im.src = order.qrImageUrl;
+                });
+            }
+
+            function drawQrisCard(order, qr) {
+                var W = 1080, M = 56, CW = W - M * 2, SH = 14;
+                var BODY = '"Space Grotesk", sans-serif', HEAD = 'Orbitron, "Space Grotesk", sans-serif';
+                var note = 'Scan dengan GoPay, DANA, OVO, ShopeePay, LinkAja, atau aplikasi m-banking berlogo QRIS.';
+                var measure = document.createElement('canvas').getContext('2d');
+                measure.font = '700 30px ' + BODY;
+                var noteLines = wrapCanvasText(measure, note, 820);
+                var frame = 800, frameY = 640, noteY = frameY + frame + 76;
+                var cardH = noteY + (noteLines.length - 1) * 42 + 56 - M;
+                var H = M + cardH + M + SH;
+                var c = document.createElement('canvas');
+                c.width = W; c.height = H;
+                var ctx = c.getContext('2d');
+
+                ctx.fillStyle = '#f5f0e8'; ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = '#0a0a0a'; ctx.fillRect(M + SH, M + SH, CW, cardH);
+                ctx.fillStyle = '#fffef9'; ctx.fillRect(M, M, CW, cardH);
+                ctx.lineWidth = 8; ctx.strokeStyle = '#0a0a0a'; ctx.strokeRect(M, M, CW, cardH);
+
+                ctx.fillStyle = '#6a3fc8'; ctx.fillRect(M, M, CW, 180); ctx.strokeRect(M, M, CW, 180);
+                var title = 'HIDZ STORE — PEMBAYARAN QRIS', idLine = 'ID Transaksi: ' + order.orderId, amount = fmtRp(order.totalAmount);
+                ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff';
+                fitCanvasFont(ctx, title, 900, HEAD, 44, CW - 80); ctx.fillText(title, W / 2, M + 92);
+                ctx.font = '700 28px ' + BODY; ctx.fillText('NMID: ID1026609601806 • QRIS Dinamis', W / 2, M + 140);
+
+                ctx.fillStyle = '#555555'; ctx.font = '800 30px ' + BODY; ctx.fillText('TOTAL BAYAR', W / 2, 320);
+                ctx.fillStyle = '#6a3fc8'; fitCanvasFont(ctx, amount, 900, HEAD, 104, CW - 120); ctx.fillText(amount, W / 2, 430);
+                ctx.fillStyle = '#0a0a0a'; fitCanvasFont(ctx, idLine, 700, BODY, 30, CW - 80); ctx.fillText(idLine, W / 2, 486);
+
+                var chip = 'BERLAKU SAMPAI ' + fmtWibClock(order.expiresAt) + ' WIB';
+                fitCanvasFont(ctx, chip, 900, HEAD, 32, CW - 160);
+                var chipW = Math.ceil(ctx.measureText(chip).width) + 64;
+                ctx.fillStyle = '#ffe94d'; ctx.fillRect((W - chipW) / 2, 524, chipW, 74);
+                ctx.lineWidth = 6; ctx.strokeRect((W - chipW) / 2, 524, chipW, 74);
+                ctx.fillStyle = '#0a0a0a'; ctx.fillText(chip, W / 2, 573);
+
+                /* Bingkai putih + zona tenang 4 modul di sekeliling QR supaya mudah dipindai */
+                var fx = (W - frame) / 2;
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, frameY, frame, frame);
+                ctx.lineWidth = 8; ctx.strokeRect(fx, frameY, frame, frame);
+                ctx.fillStyle = '#000000';
+                if (qr.modules) {
+                    var total = qr.size + 8, mod = Math.floor((frame - 16) / total), qrPx = mod * total;
+                    var ox = fx + Math.floor((frame - qrPx) / 2) + mod * 4, oy = frameY + Math.floor((frame - qrPx) / 2) + mod * 4;
+                    for (var y = 0; y < qr.size; y++) {
+                        for (var x = 0; x < qr.size; x++) {
+                            if (qr.modules[y][x]) ctx.fillRect(ox + x * mod, oy + y * mod, mod, mod);
+                        }
+                    }
+                } else {
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(qr, fx + 48, frameY + 48, frame - 96, frame - 96);
+                }
+
+                ctx.fillStyle = '#555555'; ctx.font = '700 30px ' + BODY;
+                noteLines.forEach(function (ln, i) { ctx.fillText(ln, W / 2, noteY + i * 42); });
+                return c;
+            }
+
+            window.downloadVipQrisPng = function () {
+                var btn = document.getElementById('qrisDownloadBtn');
+                if (btn && btn.disabled) return;
+                var o = _activeOrder;
+                if (!o || o.status !== 'PENDING' || serverNow() >= Number(o.expiresAt)) {
+                    showHzToast('QRIS sudah tidak berlaku');
+                    return;
+                }
+                hzBtnBusy(btn, true);
+                ensureQrisFonts().then(function () {
+                    return loadQrisSource(o);
+                }).then(function (qr) {
+                    var canvas = drawQrisCard(o, qr);
+                    return new Promise(function (resolve, reject) {
+                        canvas.toBlob(function (blob) { blob ? resolve(blob) : reject(new Error('qris-blob')); }, 'image/png');
+                    });
+                }).then(function (blob) {
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'qris-' + String(o.orderId).replace(/[^A-Za-z0-9_-]/g, '') + '.png';
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+                    hzBtnBusy(btn, false);
+                    showHzToast('QRIS berhasil diunduh');
+                }).catch(function () {
+                    hzBtnBusy(btn, false);
+                    showHzToast('Gagal mengunduh QRIS, coba lagi');
+                });
             };
 
             window.cancelActiveVipOrder = function () {
