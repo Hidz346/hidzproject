@@ -3,6 +3,7 @@ var db = require('./db');
 var pw = require('./password');
 var firebaseAuth = require('./firebase-auth');
 var gateway = require('./midtrans-qris-gateway');
+var vouchers = require('./vip-vouchers');
 
 var DAY_MS = 86400000;
 var ORDER_EXPIRY_MS = 5 * 60 * 1000;
@@ -65,25 +66,6 @@ async function authenticateCustomer(req) {
     if ((found.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, found.password)) return { ok: false, reason: 'auth_required' };
     if (found.role === 'admin') return { ok: false, reason: 'admin_cannot_buy' };
     return { ok: true, account: found };
-}
-
-async function validateVoucherCode(rawCode, planId) {
-    var code = String(rawCode || '').trim().toUpperCase();
-    if (!code || !/^[A-Z0-9]{4,20}$/.test(code)) return { valid: false, reason: 'not_found', message: 'Kode voucher tidak ditemukan atau tidak valid.' };
-    var v = await db.fetchPath('hidz_vouchers/' + code);
-    if (!v || typeof v !== 'object' || v.status === 'deleted') return { valid: false, reason: 'not_found', message: 'Kode voucher tidak ditemukan atau tidak valid.' };
-    if (v.expiresAt && Date.now() > Number(v.expiresAt)) return { valid: false, reason: 'expired', message: 'Kode voucher sudah kedaluwarsa.' };
-    if (planId && v.planId !== planId) {
-        return { valid: false, reason: 'wrong_plan', planId: v.planId, planLabel: v.planLabel || v.planId, message: 'Voucher ini hanya berlaku untuk paket ' + (v.planLabel || v.planId) + '.' };
-    }
-    return {
-        valid: true,
-        voucher: {
-            code: v.code, planId: v.planId, planLabel: v.planLabel || v.planId, discountType: v.discountType,
-            percent: Number(v.percent), normalPrice: Number(v.normalPrice), finalPrice: Number(v.finalPrice),
-            discountAmount: Math.max(0, Number(v.normalPrice) - Number(v.finalPrice)), expiresAt: Number(v.expiresAt)
-        }
-    };
 }
 
 async function transitionOrderAtomically(orderId, mutator) {
@@ -169,12 +151,10 @@ async function fulfillOrderSuccess(orderId, settlementMeta) {
 
     if (order.voucherCode) {
         var vCode = String(order.voucherCode).toUpperCase();
-        var vData = await db.fetchPath('hidz_vouchers/' + vCode);
+        var vData = await vouchers.consumeSlot(vCode, order, activatedAt);
         /* Voucher yang sudah dihapus admin (beserta riwayatnya) tidak dicatat lagi, supaya riwayat
            yatim tidak muncul kembali di panel admin. Pesanannya sendiri tetap menyimpan kode vouchernya. */
-        if (vData && typeof vData === 'object') {
-            vData.usedCount = (Number(vData.usedCount) || 0) + 1; vData.lastUsedAt = activatedAt;
-            await db.setPath('hidz_vouchers/' + vCode, vData);
+        if (vData) {
             var histId = 'vh_' + activatedAt + '_' + crypto.randomBytes(3).toString('hex');
             await db.setPath('hidz_voucher_history/' + histId, {
                 id: histId, code: vCode, action: 'used', username: order.username, orderId: order.orderId,
@@ -247,10 +227,10 @@ async function handleAction(action, req, res) {
         var rlKey = 'vchk_' + account.id;
         var limit = await db.checkRateLimitByKey(VIP_ORDER_RATE_PATH, rlKey);
         if (limit.blocked) { res.status(200).json({ ok: false, locked: true, retryAfterSec: limit.retryAfterSec, message: 'Terlalu banyak percobaan voucher. Coba lagi dalam ' + limit.retryAfterSec + ' detik.' }); return; }
-        var vRes = await validateVoucherCode(body.code, body.planId || '');
+        var vRes = await vouchers.validate(body.code, body.planId || '', account.id);
         if (!vRes.valid) {
             if (!body.silentPoll) await db.registerRateLimitFailByKey(VIP_ORDER_RATE_PATH, rlKey);
-            res.status(200).json({ ok: false, reason: vRes.reason, planId: vRes.planId || null, planLabel: vRes.planLabel || null, message: vRes.message }); return;
+            res.status(200).json({ ok: false, reason: vRes.reason, message: vRes.message }); return;
         }
         await db.clearRateLimitByKey(VIP_ORDER_RATE_PATH, rlKey);
         res.status(200).json({ ok: true, serverNow: now, voucher: vRes.voucher }); return;
@@ -277,12 +257,22 @@ async function handleAction(action, req, res) {
         }
         var normalPrice = Number(plan.price), finalPrice = normalPrice, discountAmount = 0, appliedVoucherCode = null, discountPercent = 0;
         if (body.voucherCode) {
-            var vc = await validateVoucherCode(body.voucherCode, plan.id);
-            if (!vc.valid) { res.status(200).json({ ok: false, reason: 'voucher_invalid', message: vc.message }); return; }
-            finalPrice = vc.voucher.finalPrice; discountAmount = vc.voucher.discountAmount; appliedVoucherCode = vc.voucher.code; discountPercent = vc.voucher.percent;
+            var vc = await vouchers.validate(body.voucherCode, plan.id, account.id);
+            if (!vc.valid) { res.status(200).json({ ok: false, reason: 'voucher_invalid', voucherReason: vc.reason, message: vc.message }); return; }
+            var vPlan = vc.voucher.plans[plan.id];
+            /* Harga voucher dibekukan saat voucher dibuat; kalau harga katalog kemudian diturunkan sampai
+               di bawahnya, voucher tidak boleh membuat harganya justru naik. */
+            finalPrice = Math.min(Number(vPlan.finalPrice), normalPrice);
+            discountAmount = normalPrice - finalPrice; appliedVoucherCode = vc.voucher.code; discountPercent = Number(vPlan.percent) || 0;
         }
         var createdAt = Date.now(), expiresAt = createdAt + ORDER_EXPIRY_MS;
         var newOrderId = 'HZVIP-' + createdAt + '-' + crypto.randomBytes(2).toString('hex').toUpperCase();
+        /* Voucher berbatas orang: slot dikunci sebelum QRIS dibuat, supaya siapa yang lebih dulu membuat
+           pesanan yang dapat, dan pesanan ke-(batas+1) ditolak walau yang lain belum membayar. */
+        if (appliedVoucherCode) {
+            var slot = await vouchers.reserveSlot(appliedVoucherCode, account, newOrderId, createdAt, expiresAt);
+            if (!slot.ok) { res.status(200).json({ ok: false, reason: 'voucher_invalid', voucherReason: slot.reason, message: slot.message }); return; }
+        }
         var newOrder = {
             orderId: newOrderId, status: 'PENDING', accountId: account.id, username: account.username,
             planId: plan.id, planLabel: plan.label, days: plan.days, durationMs: plan.durationMs, planDurationLabel: plan.durationLabel,
@@ -294,6 +284,7 @@ async function handleAction(action, req, res) {
         };
         var qrisRes = await gateway.createQris(newOrder);
         if (!qrisRes.ok) {
+            if (appliedVoucherCode) await vouchers.releaseSlot(appliedVoucherCode, newOrderId);
             await db.registerRateLimitFailByKey(VIP_ORDER_RATE_PATH, ordRlKey);
             var humanMsg = qrisRes.reason === 'MIDTRANS_NOT_CONFIGURED' ? 'MIDTRANS_SERVER_KEY belum diatur di Environment Variables Vercel.' : 'Gagal membuat QRIS (' + qrisRes.reason + '). Coba lagi.';
             res.status(200).json({ ok: false, reason: qrisRes.reason, message: humanMsg }); return;

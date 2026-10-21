@@ -10445,16 +10445,28 @@
                 if (ov && ov.classList.contains('open')) window._prcRefreshHeaderLive();
             }, 1000);
 
+            /* Voucher bisa mencakup satu, beberapa, atau semua paket: harganya dicari per paket.
+               null kalau voucher yang aktif tidak mencakup paket itu. */
+            function voucherPlan(planId) {
+                return (_appliedVoucher && _appliedVoucher.plans && _appliedVoucher.plans[planId]) || null;
+            }
+
+            function voucherCoverage(v) {
+                var ids = Object.keys(v.plans || {});
+                if (ids.length === 1) return 'paket ' + v.plans[ids[0]].planLabel;
+                return ids.length >= _plans.length ? 'semua paket' : ids.length + ' paket';
+            }
+
             function renderPlansGrid() {
                 var grid = document.getElementById('prcPlansGrid');
                 if (!grid) return;
                 var isAdmin = (getSess().role === 'admin'), html = '';
                 _plans.forEach(function (p) {
-                    var hasV = !!(_appliedVoucher && _appliedVoucher.planId === p.id);
-                    var fp = hasV ? _appliedVoucher.finalPrice : p.price;
+                    var vp = voucherPlan(p.id), hasV = !!vp;
+                    var fp = hasV ? vp.finalPrice : p.price;
                     html += '<div class="prc-plan-card' + (hasV ? ' has-disc' : '') + '"><div>' +
                         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div class="prc-plan-icon"><i class="fas fa-gem"></i></div>' +
-                        (hasV ? '<span class="card-new-badge" style="position:static;background:#22c55e;color:#fff;">-' + esc(_appliedVoucher.percent) + '%</span>' : '') + '</div>' +
+                        (hasV ? '<span class="card-new-badge" style="position:static;background:#22c55e;color:#fff;">-' + esc(vp.percent) + '%</span>' : '') + '</div>' +
                         '<div class="prc-plan-name">' + esc(p.label) + '</div><div class="prc-plan-desc">Masa aktif ' + esc(p.days) + ' hari penuh</div><div style="margin-top:8px;">' +
                         (hasV ? '<div class="prc-price-old">' + fmtRp(p.price) + '</div>' : '') + '<div class="prc-price-now">' + fmtRp(fp) + '</div></div></div>' +
                         '<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;"' + (_planBusyId ? ' disabled' : ' onclick="window.selectVipPlan(\'' + p.id + '\')"')) + '>' +
@@ -10468,7 +10480,16 @@
                 if (!b || !t) return;
                 if (!_appliedVoucher) { b.style.display = 'none'; return; }
                 b.style.display = 'flex';
-                t.textContent = 'Voucher ' + _appliedVoucher.code + ' aktif (' + _appliedVoucher.planLabel + ' jadi ' + fmtRp(_appliedVoucher.finalPrice) + ')';
+                var ids = Object.keys(_appliedVoucher.plans || {}), msg;
+                if (ids.length === 1) {
+                    var only = _appliedVoucher.plans[ids[0]];
+                    msg = 'Voucher ' + _appliedVoucher.code + ' aktif (' + only.planLabel + ' jadi ' + fmtRp(only.finalPrice) + ')';
+                } else {
+                    msg = 'Voucher ' + _appliedVoucher.code + ' aktif untuk ' + voucherCoverage(_appliedVoucher);
+                }
+                /* Voucher berbatas orang: tampilkan sisa slot supaya jelas siapa cepat dia dapat */
+                if (_appliedVoucher.maxUses > 0 && _appliedVoucher.remaining > 0) msg += ' • sisa ' + _appliedVoucher.remaining + ' dari ' + _appliedVoucher.maxUses + ' slot';
+                t.textContent = msg;
             }
 
             function startVoucherPolling() {
@@ -10476,20 +10497,18 @@
                 _voucherPollTimer = setInterval(function () {
                     var ov = document.getElementById('pricingOverlay');
                     if (!ov || !ov.classList.contains('open') || !_appliedVoucher || document.visibilityState === 'hidden') return;
-                    vipApi('/api/vip/voucher-check', { code: _appliedVoucher.code, planId: _appliedVoucher.planId, silentPoll: true }).then(function (res) {
+                    vipApi('/api/vip/voucher-check', { code: _appliedVoucher.code, silentPoll: true }).then(function (res) {
                         /* Gagal sementara (kena batas percobaan, DB error, auth) bukan berarti voucher dicabut:
-                           yang dihapus hanya kalau server menjawab voucher-nya sendiri sudah tidak berlaku. */
+                           yang dihapus hanya kalau server menjawab voucher-nya sendiri sudah tidak berlaku
+                           (termasuk kuota orangnya sudah habis diambil orang lain). */
                         if (res && res.ok && res.voucher) {
                             _appliedVoucher = res.voucher;
                             renderVoucherBanner();
                             renderPlansGrid();
                             if (_selectedPlan) updateCheckoutSummaryUI();
-                        } else if (res && res.ok === false && !res.locked && /^(not_found|expired|wrong_plan)$/.test(res.reason || '')) {
-                            _appliedVoucher = null;
-                            renderVoucherBanner();
-                            renderPlansGrid();
-                            if (_selectedPlan) updateCheckoutSummaryUI();
-                            showHzToast('Voucher tidak lagi berlaku, harga kembali normal.');
+                        } else if (res && res.ok === false && !res.locked && /^(not_found|expired|wrong_plan|exhausted|already_used)$/.test(res.reason || '')) {
+                            dropVoucher();
+                            showHzToast(/^(exhausted|already_used)$/.test(res.reason) ? res.message + ' Harga kembali normal.' : 'Voucher tidak lagi berlaku, harga kembali normal.');
                         }
                     }).catch(function () {});
                 }, 10000);
@@ -10533,14 +10552,15 @@
                     _appliedVoucher = res.voucher;
                     renderVoucherBanner();
                     renderPlansGrid();
-                    showHzToast('Voucher ' + _appliedVoucher.code + ' diterapkan untuk paket ' + _appliedVoucher.planLabel);
+                    showHzToast('Voucher ' + _appliedVoucher.code + ' diterapkan untuk ' + voucherCoverage(_appliedVoucher));
                 }).catch(function () {
                     hzBtnBusy(btn, false);
                     showHzToast('Gagal memeriksa voucher');
                 });
             };
 
-            window.removePricingVoucher = function () {
+            /* Lepas voucher dari seluruh tampilan (tanpa pesan) */
+            function dropVoucher() {
                 _appliedVoucher = null;
                 ['prcVoucherInput', 'chkVoucherInput'].forEach(function (id) {
                     var el = document.getElementById(id);
@@ -10549,20 +10569,24 @@
                 renderVoucherBanner();
                 renderPlansGrid();
                 if (_selectedPlan) updateCheckoutSummaryUI();
+            }
+
+            window.removePricingVoucher = function () {
+                dropVoucher();
                 showHzToast('Voucher dilepas');
             };
 
             function updateCheckoutSummaryUI() {
                 if (!_selectedPlan) return;
-                var hasV = !!(_appliedVoucher && _appliedVoucher.planId === _selectedPlan.id);
-                var fp = hasV ? _appliedVoucher.finalPrice : _selectedPlan.price;
+                var vp = voucherPlan(_selectedPlan.id), hasV = !!vp;
+                var fp = hasV ? vp.finalPrice : _selectedPlan.price;
                 document.getElementById('chkModalTitle').textContent = 'Upgrade ke VIP (' + _selectedPlan.label + ' \u2022 ' + fmtRp(fp) + ')';
                 document.getElementById('chkSumPlan').textContent = 'VIP \u2022 ' + _selectedPlan.label + ' (' + _selectedPlan.days + ' Hari)';
                 document.getElementById('chkSumNormal').textContent = fmtRp(_selectedPlan.price);
                 var dRow = document.getElementById('chkSumDiscRow'), dEl = document.getElementById('chkSumDisc');
                 if (hasV) {
                     dRow.style.display = 'flex';
-                    dEl.textContent = '- ' + fmtRp(_appliedVoucher.discountAmount) + ' (' + _appliedVoucher.code + ')';
+                    dEl.textContent = '- ' + fmtRp(vp.discountAmount) + ' (' + _appliedVoucher.code + ')';
                 } else {
                     dRow.style.display = 'none';
                 }
@@ -10633,16 +10657,11 @@
                     btn.innerHTML = on ? '<i class="fas fa-spinner fa-spin"></i> Membuat QRIS...' : '<i class="fas fa-qrcode"></i> Bayar dengan QRIS';
                 }
                 setWait(true);
-                var vCode = (_appliedVoucher && _appliedVoucher.planId === _selectedPlan.id) ? _appliedVoucher.code : '';
+                var vCode = voucherPlan(_selectedPlan.id) ? _appliedVoucher.code : '';
                 vipApi('/api/vip/order-create', { planId: _selectedPlan.id, voucherCode: vCode }).then(function (res) {
                     setWait(false);
                     if (!res || !res.ok || !res.order) {
-                        if (res && res.reason === 'voucher_invalid') {
-                            _appliedVoucher = null;
-                            renderVoucherBanner();
-                            renderPlansGrid();
-                            updateCheckoutSummaryUI();
-                        }
+                        if (res && res.reason === 'voucher_invalid') dropVoucher();
                         showHzToast((res && res.message) || 'Gagal membuat pesanan QRIS');
                         return;
                     }
@@ -10769,6 +10788,9 @@
                 clearActiveQrisCache();
                 stopQrisTimers();
                 window.closeVipQrisModal();
+                /* Voucher berbatas orang hanya bisa dipakai sekali per akun: setelah dipakai, lepas dari
+                   tampilan supaya pengecekan berikutnya tidak memunculkan pesan "tidak berlaku". */
+                if (_appliedVoucher && order.voucherCode === _appliedVoucher.code && _appliedVoucher.maxUses > 0) dropVoucher();
                 notifyOnce(order.orderId, 'success', 'Pembayaran berhasil! Akun kamu sekarang VIP.');
                 syncSessionAfterPayment();
                 window.openVipReceipt(order);
