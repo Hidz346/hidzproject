@@ -23,6 +23,20 @@ var LATE_PAY_GRACE_MS = 15 * 1000;
 function fbKey(s) { return String(s).replace(/[.$#\[\]\/]/g, '_'); }
 function accountKey(id) { return 'a_' + fbKey(id); }
 
+/* Baca satu path dan bedakan "tidak ada" ({ ok: true, value: null }) dari "gagal baca" ({ ok: false }),
+   supaya gangguan sesaat di database tidak dianggap voucher dihapus atau slot kosong. */
+async function readStrict(path) {
+    var secret = process.env.FIREBASE_DB_SECRET || '';
+    if (!secret) return { ok: false };
+    try {
+        var r = await fetch(db.DB_URL + '/' + path + '.json?auth=' + secret);
+        if (!r.ok) return { ok: false };
+        return { ok: true, value: await r.json() };
+    } catch (e) {
+        return { ok: false };
+    }
+}
+
 function planMap(v) {
     if (v.plans && typeof v.plans === 'object' && Object.keys(v.plans).length) return v.plans;
     var map = {};
@@ -75,7 +89,9 @@ async function freedReservations(v, now) {
     await Promise.all(Object.keys(reserved).map(async function (id) {
         var r = reserved[id] || {};
         if (now > Number(r.expiresAt) + LATE_PAY_GRACE_MS) { freed.push(id); return; }
-        var ord = await db.fetchPath('hidz_vip_orders/' + id);
+        var rd = await readStrict('hidz_vip_orders/' + id);
+        if (!rd.ok) return; /* tidak bisa memastikan: slot tetap dianggap ditahan */
+        var ord = rd.value;
         if (!ord || typeof ord !== 'object') {
             if (now - Number(r.createdAt) > RESERVE_GRACE_MS) freed.push(id);
             return;
@@ -114,12 +130,15 @@ function slotProblem(st) {
 }
 
 var NOT_FOUND = { valid: false, reason: 'not_found', message: 'Kode voucher tidak ditemukan atau tidak valid.' };
+var UNAVAILABLE = { valid: false, reason: 'unavailable', message: 'Voucher belum bisa diperiksa, coba lagi sebentar lagi.' };
 
 /* Periksa voucher untuk akun ini (dan paket tertentu kalau planId diisi), tanpa mengubah apa pun */
 async function validate(rawCode, planId, accountId) {
     var code = String(rawCode || '').trim().toUpperCase();
     if (!code || !/^[A-Z0-9]{4,20}$/.test(code)) return NOT_FOUND;
-    var v = await db.fetchPath('hidz_vouchers/' + code);
+    var rd = await readStrict('hidz_vouchers/' + code);
+    if (!rd.ok) return UNAVAILABLE;
+    var v = rd.value;
     if (!v || typeof v !== 'object' || v.status === 'deleted') return NOT_FOUND;
     var now = Date.now();
     if (v.expiresAt && now > Number(v.expiresAt)) return { valid: false, reason: 'expired', message: 'Kode voucher sudah kedaluwarsa.' };
@@ -147,7 +166,9 @@ async function validate(rawCode, planId, accountId) {
 /* Kunci satu slot untuk pesanan ini. Voucher tanpa batas orang tidak mengunci apa pun. */
 async function reserveSlot(rawCode, account, orderId, createdAt, orderExpiresAt) {
     var code = String(rawCode || '').trim().toUpperCase();
-    var first = await db.fetchPath('hidz_vouchers/' + code);
+    var rd = await readStrict('hidz_vouchers/' + code);
+    if (!rd.ok) return { ok: false, reason: 'unavailable', message: UNAVAILABLE.message };
+    var first = rd.value;
     if (!first || typeof first !== 'object') return { ok: false, reason: 'not_found', message: NOT_FOUND.message };
     if (!limitOf(first)) return { ok: true };
 
@@ -195,4 +216,15 @@ async function consumeSlot(rawCode, order, usedAt) {
     return (out.ok && out.voucher) ? stripPrivate(out.voucher) : null;
 }
 
-module.exports = { validate: validate, reserveSlot: reserveSlot, releaseSlot: releaseSlot, consumeSlot: consumeSlot };
+/* Apakah voucher masih menjadi dasar harga sebuah pesanan yang belum dibayar: masih ada (belum dihapus admin),
+   belum kedaluwarsa, dan masih mencakup paket pesanan. true / false, atau null kalau database tidak bisa dibaca. */
+async function isHonored(rawCode, planId) {
+    var rd = await readStrict('hidz_vouchers/' + String(rawCode || '').trim().toUpperCase());
+    if (!rd.ok) return null;
+    var v = rd.value;
+    if (!v || typeof v !== 'object' || v.status === 'deleted') return false;
+    if (v.expiresAt && Date.now() > Number(v.expiresAt)) return false;
+    return !!planMap(v)[planId];
+}
+
+module.exports = { validate: validate, reserveSlot: reserveSlot, releaseSlot: releaseSlot, consumeSlot: consumeSlot, isHonored: isHonored };

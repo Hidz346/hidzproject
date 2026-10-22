@@ -166,6 +166,34 @@ async function fulfillOrderSuccess(orderId, settlementMeta) {
     return { ok: true, order: finalOrder };
 }
 
+/* Gangguan sesaat (database belum terbaca, slot gagal dikunci) bukan berarti voucher dicabut:
+   halaman jangan melepas voucher, cukup minta pengguna mencoba lagi. */
+function voucherFailure(reason) {
+    return (reason === 'unavailable' || reason === 'busy') ? 'voucher_retry' : 'voucher_invalid';
+}
+
+/* Voucher yang jadi dasar harga pesanan dihapus admin atau sudah kedaluwarsa sebelum pesanan dibayar:
+   pesanan dibatalkan supaya tidak ada yang membayar dengan harga voucher yang sudah tidak berlaku.
+   Kembali null kalau pesanan tetap berjalan (voucher masih berlaku, database belum bisa dibaca, QRIS
+   belum bisa dibatalkan di Midtrans, atau ternyata sudah dibayar). */
+async function cancelIfVoucherEnded(order, now) {
+    if (!order.voucherCode || now > Number(order.expiresAt)) return null;
+    if ((await vouchers.isHonored(order.voucherCode, order.planId)) !== false) return null;
+    try { await gateway.cancelOrder(order.orderId); } catch (e) {}
+    var st = await gateway.getStatus(order.orderId);
+    if (st.ok && (st.transactionStatus === 'settlement' || st.transactionStatus === 'capture') && st.fraudStatus === 'accept' && st.grossAmount === Number(order.totalAmount)) {
+        var paid = await fulfillOrderSuccess(order.orderId, st);
+        return (paid.ok && paid.order) ? paid.order : null;
+    }
+    /* Pembatalan di Midtrans belum berhasil: QRIS masih bisa dibayar, jadi jangan dibatalkan di sini. Dicoba lagi di pengecekan berikutnya. */
+    if (st.ok ? (st.transactionStatus === 'pending' || st.transactionStatus === 'authorize') : st.reason !== 'NOT_FOUND') return null;
+    var upd = await transitionOrderAtomically(order.orderId, function (cur) {
+        if (cur.status !== 'PENDING') return { save: false };
+        return { save: true, order: Object.assign({}, cur, { status: 'CANCELLED', cancelledAt: now, cancelReason: 'voucher_ended' }) };
+    });
+    return (upd.ok && upd.order) ? upd.order : null;
+}
+
 async function syncOrderStatus(order) {
     if (!order || typeof order !== 'object' || order.status !== 'PENDING') return order;
     var now = Date.now();
@@ -176,13 +204,19 @@ async function syncOrderStatus(order) {
             if (fulfilled.ok && fulfilled.order) return fulfilled.order;
         } else if (st.transactionStatus === 'cancel' || st.transactionStatus === 'deny' || st.transactionStatus === 'expire') {
             var nextSt = st.transactionStatus === 'expire' ? 'EXPIRED' : (st.transactionStatus === 'cancel' ? 'CANCELLED' : 'FAILED');
+            /* QRIS yang sudah dibatalkan di Midtrans karena voucher berakhir, tapi belum sempat dicatat di sini */
+            var endedByVoucher = nextSt === 'CANCELLED' && !!order.voucherCode && (await vouchers.isHonored(order.voucherCode, order.planId)) === false;
             var upd = await transitionOrderAtomically(order.orderId, function (cur) {
                 if (cur.status !== 'PENDING') return { save: false };
-                return { save: true, order: Object.assign({}, cur, { status: nextSt, updatedAt: now }) };
+                var changes = { status: nextSt, updatedAt: now };
+                if (endedByVoucher) { changes.cancelledAt = now; changes.cancelReason = 'voucher_ended'; }
+                return { save: true, order: Object.assign({}, cur, changes) };
             });
             if (upd.ok && upd.order) return upd.order;
         }
     }
+    var ended = await cancelIfVoucherEnded(order, now);
+    if (ended) return ended;
     if (now > Number(order.expiresAt)) {
         var expUpd = await transitionOrderAtomically(order.orderId, function (cur) {
             if (cur.status !== 'PENDING') return { save: false };
@@ -229,7 +263,7 @@ async function handleAction(action, req, res) {
         if (limit.blocked) { res.status(200).json({ ok: false, locked: true, retryAfterSec: limit.retryAfterSec, message: 'Terlalu banyak percobaan voucher. Coba lagi dalam ' + limit.retryAfterSec + ' detik.' }); return; }
         var vRes = await vouchers.validate(body.code, body.planId || '', account.id);
         if (!vRes.valid) {
-            if (!body.silentPoll) await db.registerRateLimitFailByKey(VIP_ORDER_RATE_PATH, rlKey);
+            if (!body.silentPoll && vRes.reason !== 'unavailable') await db.registerRateLimitFailByKey(VIP_ORDER_RATE_PATH, rlKey);
             res.status(200).json({ ok: false, reason: vRes.reason, message: vRes.message }); return;
         }
         await db.clearRateLimitByKey(VIP_ORDER_RATE_PATH, rlKey);
@@ -258,7 +292,7 @@ async function handleAction(action, req, res) {
         var normalPrice = Number(plan.price), finalPrice = normalPrice, discountAmount = 0, appliedVoucherCode = null, discountPercent = 0;
         if (body.voucherCode) {
             var vc = await vouchers.validate(body.voucherCode, plan.id, account.id);
-            if (!vc.valid) { res.status(200).json({ ok: false, reason: 'voucher_invalid', voucherReason: vc.reason, message: vc.message }); return; }
+            if (!vc.valid) { res.status(200).json({ ok: false, reason: voucherFailure(vc.reason), voucherReason: vc.reason, message: vc.message }); return; }
             var vPlan = vc.voucher.plans[plan.id];
             /* Harga voucher dibekukan saat voucher dibuat; kalau harga katalog kemudian diturunkan sampai
                di bawahnya, voucher tidak boleh membuat harganya justru naik. */
@@ -271,7 +305,7 @@ async function handleAction(action, req, res) {
            pesanan yang dapat, dan pesanan ke-(batas+1) ditolak walau yang lain belum membayar. */
         if (appliedVoucherCode) {
             var slot = await vouchers.reserveSlot(appliedVoucherCode, account, newOrderId, createdAt, expiresAt);
-            if (!slot.ok) { res.status(200).json({ ok: false, reason: 'voucher_invalid', voucherReason: slot.reason, message: slot.message }); return; }
+            if (!slot.ok) { res.status(200).json({ ok: false, reason: voucherFailure(slot.reason), voucherReason: slot.reason, message: slot.message }); return; }
         }
         var newOrder = {
             orderId: newOrderId, status: 'PENDING', accountId: account.id, username: account.username,

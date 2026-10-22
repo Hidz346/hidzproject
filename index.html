@@ -10324,7 +10324,9 @@
             var ACTIVE_QRIS_STORAGE_KEY = 'hidz_vip_active_qris';
             var _plans = DEFAULT_PLANS.slice(), _appliedVoucher = null, _selectedPlan = null;
             var _activeOrder = null, _currentReceipt = null, _txHistoryCache = [], _planBusyId = null;
-            var _serverTimeOffset = 0, _voucherPollTimer = null, _qrisPollTimer = null, _qrisCdTimer = null, _notified = {};
+            var _serverTimeOffset = 0, _voucherPollTimer = null, _voucherExpiryTimer = null, _voucherChecking = false, _qrisPollTimer = null, _qrisCdTimer = null, _notified = {};
+            /* Selang cek voucher ke server. Pendek supaya voucher yang dihapus/habis langsung terasa di harga. */
+            var VOUCHER_POLL_MS = 4000;
 
             function getSess() {
                 try { return JSON.parse(localStorage.getItem('hidz_session') || '{}'); } catch (e) { return {}; }
@@ -10492,26 +10494,58 @@
                 t.textContent = msg;
             }
 
+            /* Pasang voucher yang diterima dari server. Kalau voucher punya batas waktu, pengecekan ke server
+               dipicu tepat saat waktunya habis, jadi harga kembali normal pada detik itu juga dan tidak
+               menunggu putaran polling berikutnya. */
+            function useVoucher(v) {
+                _appliedVoucher = v;
+                if (_voucherExpiryTimer) { clearTimeout(_voucherExpiryTimer); _voucherExpiryTimer = null; }
+                var exp = Number(v && v.expiresAt);
+                if (!exp) return;
+                var wait = exp - serverNow() + 400;
+                /* setTimeout hanya menyimpan sampai sekitar 24 hari; yang lebih jauh dijaga polling biasa */
+                if (wait > 2147483000) return;
+                _voucherExpiryTimer = setTimeout(function () {
+                    _voucherExpiryTimer = null;
+                    pollVoucherOnce();
+                }, Math.max(wait, 0));
+            }
+
+            /* Satu kali pengecekan voucher yang sedang dipakai. Dijalankan polling, timer kedaluwarsa, dan saat tab kembali dilihat. */
+            function pollVoucherOnce() {
+                if (!_appliedVoucher || _voucherChecking) return;
+                var code = _appliedVoucher.code;
+                _voucherChecking = true;
+                vipApi('/api/vip/voucher-check', { code: code, silentPoll: true }).then(function (res) {
+                    _voucherChecking = false;
+                    /* Voucher diganti selagi menunggu jawaban: hasil untuk kode lama diabaikan */
+                    if (!_appliedVoucher || _appliedVoucher.code !== code) return;
+                    /* Gagal sementara (kena batas percobaan, DB error, auth) bukan berarti voucher dicabut:
+                       yang dilepas hanya kalau server menjawab voucher-nya sendiri sudah tidak berlaku
+                       (dihapus admin, kedaluwarsa, atau kuota orangnya sudah habis diambil orang lain). */
+                    if (res && res.ok && res.voucher) {
+                        useVoucher(res.voucher);
+                        renderVoucherBanner();
+                        renderPlansGrid();
+                        if (_selectedPlan) updateCheckoutSummaryUI();
+                    } else if (res && res.ok === false && !res.locked && /^(not_found|expired|wrong_plan|exhausted|already_used)$/.test(res.reason || '')) {
+                        /* Sedang di halaman QRIS dengan voucher ini: server membatalkan pesanannya, jadi ambil statusnya
+                           sekarang juga. Pesan untuk pengguna muncul dari sana (returnToNormalPrice), bukan dobel di sini. */
+                        var onQris = !!(_activeOrder && _activeOrder.status === 'PENDING' && _activeOrder.voucherCode === code);
+                        dropVoucher();
+                        if (onQris) { pollOrderStatus(false); return; }
+                        showHzToast(/^(exhausted|already_used)$/.test(res.reason) ? res.message + ' Harga kembali normal.' : 'Voucher ' + code + ' sudah tidak berlaku. Harga kembali normal.');
+                    }
+                }).catch(function () { _voucherChecking = false; });
+            }
+
             function startVoucherPolling() {
                 if (_voucherPollTimer) clearInterval(_voucherPollTimer);
                 _voucherPollTimer = setInterval(function () {
                     var ov = document.getElementById('pricingOverlay');
                     if (!ov || !ov.classList.contains('open') || !_appliedVoucher || document.visibilityState === 'hidden') return;
-                    vipApi('/api/vip/voucher-check', { code: _appliedVoucher.code, silentPoll: true }).then(function (res) {
-                        /* Gagal sementara (kena batas percobaan, DB error, auth) bukan berarti voucher dicabut:
-                           yang dihapus hanya kalau server menjawab voucher-nya sendiri sudah tidak berlaku
-                           (termasuk kuota orangnya sudah habis diambil orang lain). */
-                        if (res && res.ok && res.voucher) {
-                            _appliedVoucher = res.voucher;
-                            renderVoucherBanner();
-                            renderPlansGrid();
-                            if (_selectedPlan) updateCheckoutSummaryUI();
-                        } else if (res && res.ok === false && !res.locked && /^(not_found|expired|wrong_plan|exhausted|already_used)$/.test(res.reason || '')) {
-                            dropVoucher();
-                            showHzToast(/^(exhausted|already_used)$/.test(res.reason) ? res.message + ' Harga kembali normal.' : 'Voucher tidak lagi berlaku, harga kembali normal.');
-                        }
-                    }).catch(function () {});
-                }, 10000);
+                    pollVoucherOnce();
+                }, VOUCHER_POLL_MS);
             }
 
             window.openPricingSheet = function () {
@@ -10549,7 +10583,7 @@
                 vipApi('/api/vip/voucher-check', { code: code }).then(function (res) {
                     hzBtnBusy(btn, false);
                     if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Kode voucher tidak valid'); return; }
-                    _appliedVoucher = res.voucher;
+                    useVoucher(res.voucher);
                     renderVoucherBanner();
                     renderPlansGrid();
                     showHzToast('Voucher ' + _appliedVoucher.code + ' diterapkan untuk ' + voucherCoverage(_appliedVoucher));
@@ -10562,6 +10596,7 @@
             /* Lepas voucher dari seluruh tampilan (tanpa pesan) */
             function dropVoucher() {
                 _appliedVoucher = null;
+                if (_voucherExpiryTimer) { clearTimeout(_voucherExpiryTimer); _voucherExpiryTimer = null; }
                 ['prcVoucherInput', 'chkVoucherInput'].forEach(function (id) {
                     var el = document.getElementById(id);
                     if (el) el.value = '';
@@ -10635,7 +10670,7 @@
                 vipApi('/api/vip/voucher-check', { code: code, planId: _selectedPlan.id }).then(function (res) {
                     hzBtnBusy(btn, false);
                     if (!res || !res.ok || !res.voucher) { showHzToast((res && res.message) || 'Voucher tidak valid'); return; }
-                    _appliedVoucher = res.voucher;
+                    useVoucher(res.voucher);
                     document.getElementById('prcVoucherInput').value = _appliedVoucher.code;
                     renderVoucherBanner();
                     renderPlansGrid();
@@ -10806,10 +10841,24 @@
                 setTimeout(fire, 4000);
             }
 
+            /* Voucher pesanan ini dihapus admin atau sudah kedaluwarsa, dan server membatalkan QRIS-nya.
+               Pengguna dikembalikan ke halaman konfirmasi paket yang sama dengan harga normal. */
+            function returnToNormalPrice(order) {
+                if (_appliedVoucher && _appliedVoucher.code === order.voucherCode) dropVoucher();
+                var p = _plans.filter(function (x) { return x.id === order.planId; })[0];
+                if (p) {
+                    _selectedPlan = p;
+                    updateCheckoutSummaryUI();
+                    document.getElementById('vipCheckoutModal').classList.add('open');
+                }
+                showHzToast('Voucher ' + order.voucherCode + ' sudah tidak berlaku, QRIS dibatalkan. Harga kembali normal' + (p ? ' ' + fmtRp(p.price) : '') + '.');
+            }
+
             /* Pesanan yang sudah tidak bisa dibayar (dibatalkan, gagal, atau dibayar terlambat) */
             function dismissInactiveOrder(order) {
                 stopQrisTimers();
                 window.closeVipQrisModal();
+                if (order.status === 'CANCELLED' && order.cancelReason === 'voucher_ended') { returnToNormalPrice(order); return; }
                 if (order.status === 'LATE_PAYMENT') {
                     showHzToast('Pembayaran masuk setelah QRIS kedaluwarsa. Hubungi admin dengan ID ' + order.orderId);
                 } else if (order.status === 'CANCELLED') {
@@ -11068,6 +11117,8 @@
 
             document.addEventListener('visibilitychange', function () {
                 if (document.visibilityState === 'visible') {
+                    var ov = document.getElementById('pricingOverlay');
+                    if (_appliedVoucher && ov && ov.classList.contains('open')) pollVoucherOnce();
                     var m = document.getElementById('vipQrisModal');
                     if (m && m.classList.contains('open') && _activeOrder && _activeOrder.status === 'PENDING') {
                         pollOrderStatus(false);
