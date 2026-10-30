@@ -565,10 +565,16 @@
             }
 
             /* Efek Hujan Lagu */
+            .music-btn-wrap {
+                position: relative;
+                display: inline-flex;
+                flex-shrink: 0;
+            }
             .music-rain-container {
                 position: absolute;
-                top: 40px;
-                right: 42px;
+                top: calc(100% + 4px);
+                left: 50%;
+                transform: translateX(-50%);
                 width: 40px;
                 height: 100px;
                 pointer-events: none;
@@ -5015,9 +5021,15 @@
                         <span id="batteryDisplay">--%</span>
                     </div>
 
-                    <button class="icon-btn" id="btnMusic" title="Musik">
-                        <i class="fas fa-music"></i>
-                    </button>
+                    <div class="music-btn-wrap">
+                        <button class="icon-btn" id="btnMusic" title="Musik">
+                            <i class="fas fa-music"></i>
+                        </button>
+                        <div
+                            class="music-rain-container"
+                            id="musicRainContainer"
+                        ></div>
+                    </div>
                     <div class="ann-icon-wrap">
                         <button class="icon-btn hidz-ann-glow" id="btnAnnounce" title="Pengumuman" onclick="window.openAnnounceSheet()">
                             <img src="https://www.gobox.my.id/file/vVUoB.png" alt="Pengumuman" class="ann-icon-logo" />
@@ -5027,10 +5039,6 @@
                     <button class="icon-btn" id="btnHamburger" title="Menu">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <div
-                        class="music-rain-container"
-                        id="musicRainContainer"
-                    ></div>
                 </div>
             </div>
 
@@ -5889,7 +5897,7 @@
                     drop.innerHTML =
                         symbols[Math.floor(Math.random() * symbols.length)];
                     drop.style.fontSize = 10 + Math.random() * 8 + "px";
-                    drop.style.left = Math.random() * 80 + 10 + "%";
+                    drop.style.left = Math.random() * 50 + 5 + "%";
                     drop.style.animationDelay = Math.random() * 1.5 + "s";
                     drop.style.animationDuration =
                         1.2 + Math.random() * 0.8 + "s";
