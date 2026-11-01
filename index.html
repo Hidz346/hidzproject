@@ -2156,13 +2156,15 @@
                 color: rgba(255,255,255,0.38);
                 font-weight: 600;
             }
-            .lc-register-link span {
+            .lc-register-link span,
+            .lc-register-link a {
                 color: #3b82f6;
                 font-weight: 800;
                 cursor: pointer;
                 text-decoration: underline;
                 text-underline-offset: 3px;
             }
+            .lc-register-link + .lc-register-link { margin-top: 8px; }
             .lc-error {
                 background: rgba(239,68,68,0.1);
                 border: 2px solid #ef4444;
@@ -4953,6 +4955,9 @@
                     </button>
                     <div class="lc-register-link">
                         Belum punya akun? <span onclick="window.openAksesSheet()">Klik disini</span>
+                    </div>
+                    <div class="lc-register-link">
+                        Mau beli VIP? <a href="/paket">Lihat paket &amp; harga</a>
                     </div>
                 </div>
             </div>

@@ -135,6 +135,15 @@
             transform: rotate(-45deg);
         }
 
+        .contact { list-style: none; font-size: 14px; margin-bottom: 16px; }
+        .contact li { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+        .contact li + li { margin-top: 8px; }
+        .contact b { min-width: 76px; }
+        .contact a { font-weight: 700; overflow-wrap: anywhere; }
+
+        .terms { padding-left: 20px; font-size: 14px; }
+        .terms li + li { margin-top: 10px; }
+
         .steps { counter-reset: s; }
         .steps li {
             counter-increment: s;
@@ -251,12 +260,42 @@
             </div>
         </section>
 
+        <section aria-labelledby="h-syarat">
+            <h2 id="h-syarat">Syarat &amp; ketentuan</h2>
+            <div class="box">
+                <ol class="terms">
+                    <li>Paket VIP adalah layanan digital berdurasi. Masa aktif dihitung sejak pembayaran terkonfirmasi dan sesuai paket yang dibeli.</li>
+                    <li>Untuk membeli, kamu perlu memiliki akun HidzProject.</li>
+                    <li>Pembayaran hanya melalui QRIS. QR berlaku 5 menit, jika sudah habis silakan buat pesanan baru.</li>
+                    <li>Jika VIP kamu masih aktif lalu membeli lagi, masa aktif baru ditambahkan ke sisa masa aktif yang sedang berjalan.</li>
+                    <li>Harga yang berlaku adalah harga yang tertera saat pembayaran. Voucher diskon berlaku sesuai ketentuannya, termasuk masa berlaku dan batas jumlah pemakai.</li>
+                </ol>
+            </div>
+        </section>
+
+        <section aria-labelledby="h-refund">
+            <h2 id="h-refund">Kebijakan refund</h2>
+            <div class="box">
+                <ol class="terms">
+                    <li>Paket yang sudah aktif tidak dapat direfund, karena VIP adalah produk digital yang aktif langsung setelah pembayaran.</li>
+                    <li>Refund atau penggantian diberikan jika pembayaran sudah berhasil tetapi VIP tidak aktif, termasuk jika pembayaran masuk setelah QR kedaluwarsa.</li>
+                    <li>Untuk mengajukan, hubungi admin lewat WhatsApp atau email dan sertakan username akun serta bukti pembayaran atau bukti transaksi.</li>
+                </ol>
+            </div>
+        </section>
+
         <section aria-labelledby="h-kontak">
             <h2 id="h-kontak">Butuh bantuan?</h2>
-            <p class="lead" style="margin-bottom:14px;">Pertanyaan soal paket, pembayaran, atau akun bisa langsung ditanyakan ke admin.</p>
-            <div class="actions">
-                <a class="btn btn-main" href="/">Buka HidzProject</a>
-                <a class="btn btn-alt" href="https://wa.me/message/FGLDCRYEE3CME1" rel="noopener">Hubungi Admin (WhatsApp)</a>
+            <div class="box">
+                <p class="lead" style="margin-bottom:12px;">Pertanyaan soal paket, pembayaran, atau akun bisa langsung ditanyakan ke admin.</p>
+                <ul class="contact">
+                    <li><b>WhatsApp</b> <a href="https://wa.me/6289679177876" rel="noopener">+62 896-7917-7876</a></li>
+                    <li><b>Email</b> <a href="mailto:hidzforum@gmail.com">hidzforum@gmail.com</a></li>
+                </ul>
+                <div class="actions">
+                    <a class="btn btn-main" href="/">Buka HidzProject</a>
+                    <a class="btn btn-alt" href="https://wa.me/6289679177876" rel="noopener">Hubungi Admin (WhatsApp)</a>
+                </div>
             </div>
         </section>
     </main>
