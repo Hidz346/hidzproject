@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Paket VIP HidzProject</title>
+    <meta name="description" content="Daftar paket VIP HidzProject beserta harga dalam Rupiah, fasilitas, dan cara membeli. Pembayaran lewat QRIS, VIP aktif otomatis.">
+    <meta name="theme-color" content="#6a3fc8">
+    <link rel="icon" href="https://www.gobox.my.id/file/vVUoB.png">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            color-scheme: light;
+            --bg: #f4f1ea;
+            --ink: #101014;
+            --muted: #5a5f6b;
+            --card: #ffffff;
+            --purple: #6a3fc8;
+            --yellow: #ffe44d;
+            --green: #12a150;
+            --line: 3px solid var(--ink);
+            --shadow: 5px 5px 0 var(--ink);
+        }
+
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            line-height: 1.55;
+        }
+        a { color: inherit; }
+
+        .bar {
+            background: var(--card);
+            border-bottom: var(--line);
+        }
+        .bar-in {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .bar img {
+            width: 38px;
+            height: 38px;
+            object-fit: cover;
+            border: var(--line);
+            box-shadow: 3px 3px 0 var(--ink);
+        }
+        .bar-name {
+            font-family: "Orbitron", "Space Grotesk", sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+        .bar-sub { font-size: 12px; color: var(--muted); }
+
+        main {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 22px 16px 36px;
+        }
+        section { margin-bottom: 28px; }
+
+        h1 {
+            font-family: "Orbitron", "Space Grotesk", sans-serif;
+            font-size: 24px;
+            line-height: 1.2;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        h2 {
+            font-family: "Orbitron", "Space Grotesk", sans-serif;
+            font-size: 14px;
+            letter-spacing: .6px;
+            text-transform: uppercase;
+            padding-left: 10px;
+            border-left: 5px solid var(--purple);
+            margin-bottom: 14px;
+        }
+        .lead { font-size: 15px; color: var(--muted); }
+        .lead strong { color: var(--ink); }
+
+        .plans {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .plan {
+            background: var(--card);
+            border: var(--line);
+            box-shadow: 4px 4px 0 var(--ink);
+            padding: 14px 12px 12px;
+        }
+        .plan-name { font-weight: 700; font-size: 17px; }
+        .plan-dur { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+        .plan-price {
+            font-family: "Orbitron", "Space Grotesk", sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--purple);
+            overflow-wrap: anywhere;
+        }
+        .note { font-size: 12px; color: var(--muted); margin-top: 12px; }
+
+        .box {
+            background: var(--card);
+            border: var(--line);
+            box-shadow: var(--shadow);
+            padding: 16px;
+        }
+        .perks, .steps { list-style: none; }
+        .perks li {
+            position: relative;
+            padding-left: 26px;
+            font-size: 14px;
+        }
+        .perks li + li { margin-top: 10px; }
+        .perks li::before {
+            content: "";
+            position: absolute;
+            left: 2px;
+            top: 5px;
+            width: 12px;
+            height: 7px;
+            border-left: 3px solid var(--green);
+            border-bottom: 3px solid var(--green);
+            transform: rotate(-45deg);
+        }
+
+        .steps { counter-reset: s; }
+        .steps li {
+            counter-increment: s;
+            position: relative;
+            padding-left: 38px;
+            font-size: 14px;
+        }
+        .steps li + li { margin-top: 12px; }
+        .steps li::before {
+            content: counter(s);
+            position: absolute;
+            left: 0;
+            top: -1px;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--yellow);
+            border: 2px solid var(--ink);
+            font-family: "Orbitron", sans-serif;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+        .btn {
+            display: inline-block;
+            padding: 12px 18px;
+            font-weight: 700;
+            font-size: 14px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            border: var(--line);
+            box-shadow: 4px 4px 0 var(--ink);
+            transition: transform .12s, box-shadow .12s;
+        }
+        .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+        .btn-main { background: var(--purple); color: #fff; }
+        .btn-alt { background: var(--yellow); }
+
+        footer {
+            border-top: var(--line);
+            background: var(--card);
+            font-size: 12px;
+            color: var(--muted);
+        }
+        footer p { max-width: 640px; margin: 0 auto; padding: 14px 16px; }
+
+        @media (min-width: 560px) {
+            .plans { grid-template-columns: repeat(4, 1fr); }
+            h1 { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="bar">
+        <div class="bar-in">
+            <img src="https://www.gobox.my.id/file/vVUoB.png" alt="Logo HidzProject">
+            <div>
+                <div class="bar-name">HidzProject</div>
+                <div class="bar-sub">Website Project Center</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section>
+            <h1>Paket VIP HidzProject</h1>
+            <p class="lead">
+                HidzProject adalah kumpulan project dan tools web buatan Hidz. Paket VIP adalah
+                <strong>layanan digital berlangganan berdasarkan durasi</strong>: akun kamu mendapat
+                akses VIP selama masa paket yang dipilih. Semua harga dalam Rupiah (IDR).
+            </p>
+        </section>
+
+        <section aria-labelledby="h-paket">
+            <h2 id="h-paket">Pilihan paket &amp; harga</h2>
+            <ul class="plans">
+                <li class="plan"><div class="plan-name">1 Day</div><div class="plan-dur">Aktif 1 hari</div><div class="plan-price">Rp 3.000</div></li>
+                <li class="plan"><div class="plan-name">3 Day</div><div class="plan-dur">Aktif 3 hari</div><div class="plan-price">Rp 5.000</div></li>
+                <li class="plan"><div class="plan-name">7 Day</div><div class="plan-dur">Aktif 7 hari</div><div class="plan-price">Rp 10.000</div></li>
+                <li class="plan"><div class="plan-name">14 Day</div><div class="plan-dur">Aktif 14 hari</div><div class="plan-price">Rp 15.000</div></li>
+                <li class="plan"><div class="plan-name">1 Month</div><div class="plan-dur">Aktif 30 hari</div><div class="plan-price">Rp 20.000</div></li>
+                <li class="plan"><div class="plan-name">3 Month</div><div class="plan-dur">Aktif 90 hari</div><div class="plan-price">Rp 30.000</div></li>
+                <li class="plan"><div class="plan-name">5 Month</div><div class="plan-dur">Aktif 150 hari</div><div class="plan-price">Rp 50.000</div></li>
+                <li class="plan"><div class="plan-name">1 Year</div><div class="plan-dur">Aktif 365 hari</div><div class="plan-price">Rp 100.000</div></li>
+            </ul>
+            <p class="note">Harga di atas adalah harga normal. Punya kode voucher? Masukkan di halaman Pricing sebelum membayar.</p>
+        </section>
+
+        <section aria-labelledby="h-fasilitas">
+            <h2 id="h-fasilitas">Fasilitas VIP</h2>
+            <div class="box">
+                <ul class="perks">
+                    <li>Akses penuh seluruh project &amp; tools eksklusif VIP di HidzProject</li>
+                    <li>Akses Panel VIP untuk membuat &amp; mengelola akun USER sendiri</li>
+                    <li>Aktivasi instan otomatis 24 jam via QRIS tanpa menunggu admin</li>
+                    <li>Pembelian ulang otomatis menambah masa aktif VIP yang sedang berjalan</li>
+                </ul>
+            </div>
+        </section>
+
+        <section aria-labelledby="h-cara">
+            <h2 id="h-cara">Cara membeli</h2>
+            <div class="box">
+                <ol class="steps">
+                    <li>Buka <a href="/">hidzproject.my.id</a> lalu masuk ke akun kamu.</li>
+                    <li>Buka menu <strong>Pricing</strong> dan pilih paket yang diinginkan.</li>
+                    <li>Bayar dengan <strong>QRIS</strong> memakai GoPay, DANA, OVO, ShopeePay, LinkAja, atau aplikasi m-banking berlogo QRIS. QR berlaku 5 menit.</li>
+                    <li>Setelah pembayaran terkonfirmasi, akun otomatis menjadi VIP dan bukti transaksi bisa diunduh.</li>
+                </ol>
+            </div>
+        </section>
+
+        <section aria-labelledby="h-kontak">
+            <h2 id="h-kontak">Butuh bantuan?</h2>
+            <p class="lead" style="margin-bottom:14px;">Pertanyaan soal paket, pembayaran, atau akun bisa langsung ditanyakan ke admin.</p>
+            <div class="actions">
+                <a class="btn btn-main" href="/">Buka HidzProject</a>
+                <a class="btn btn-alt" href="https://wa.me/message/FGLDCRYEE3CME1" rel="noopener">Hubungi Admin (WhatsApp)</a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; HidzProject. Semua harga dalam Rupiah (IDR).</p>
+    </footer>
+</body>
+</html>

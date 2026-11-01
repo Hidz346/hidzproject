@@ -40,6 +40,11 @@ self.addEventListener('activate', function (event) {
 self.addEventListener('fetch', function (event) {
     var req = event.request;
 
+    /* Halaman publik daftar paket (/paket) bukan bagian aplikasi: jangan
+       disentuh, supaya tidak ikut tersimpan sebagai shell offline. */
+    var path = new URL(req.url).pathname;
+    if (path === '/paket' || path === '/paket.html') return;
+
     /* Cuma tangani navigasi ke halaman utama. Semua request lain
        (Firebase SDK, Firebase Realtime Database, Font Awesome, Google
        Fonts, gambar, dll) dibiarkan lewat langsung tanpa disentuh. */

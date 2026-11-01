@@ -29,6 +29,10 @@
       "destination": "/api/check-session?vipAction=webhook"
     },
     {
+      "source": "/paket",
+      "destination": "/paket.html"
+    },
+    {
       "source": "/((?!api/|manifest\\.json|sw\\.js).*)",
       "destination": "/index.html"
     }
