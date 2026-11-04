@@ -1,6 +1,7 @@
 var db = require('./_lib/db');
 var securityGuard = require('./_lib/security');
 var vipCheckout = require('./_lib/project-vip-checkout');
+var globalChat = require('./_lib/global-chat');
 
 module.exports = async function (req, res) {
     var queryAction = (req.query && req.query.vipAction) || (req.body && req.body.vipAction) || '';
@@ -10,7 +11,9 @@ module.exports = async function (req, res) {
     }
     if (!(await securityGuard.guard(req, res))) return;
     if (queryAction) {
-        await vipCheckout.handleAction(String(queryAction), req, res);
+        var actionName = String(queryAction);
+        if (actionName.indexOf('chat-') === 0) await globalChat.handleAction(actionName, req, res);
+        else await vipCheckout.handleAction(actionName, req, res);
         return;
     }
     if (req.method !== 'POST') {

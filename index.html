@@ -2743,6 +2743,74 @@
             .kons-msg-menu button:last-child { background: none; border: none; justify-content: center; color: var(--text-secondary); }
             .kons-msg-menu button:active { transform: translate(2px, 2px); }
 
+            /* ---- Chat Global: ruang obrolan bersama VIP & ADMIN ---- */
+            .gc-overlay { z-index: 260; }
+            .gc-header-ico {
+                width: 34px; height: 34px; flex-shrink: 0;
+                display: flex; align-items: center; justify-content: center;
+                background: var(--primary); color: #fff; font-size: 15px;
+                border: 2px solid var(--border); box-shadow: 2px 2px 0px var(--border);
+            }
+            .gc-stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+            .gc-messages { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+            .gc-row { display: flex; }
+            .gc-row.lead { margin-top: 8px; }
+            .gc-row.me { justify-content: flex-end; }
+            .gc-row.them { justify-content: flex-start; }
+            .gc-wrap { max-width: 80%; display: flex; flex-direction: column; }
+            .gc-row.me .gc-wrap { align-items: flex-end; }
+            .gc-row.them .gc-wrap { align-items: flex-start; }
+            .gc-sender { font-size: 10px; font-weight: 800; color: var(--text-secondary); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px; }
+            .gc-role { font-size: 8px; font-weight: 900; padding: 1px 5px; border: 1.5px solid var(--border); letter-spacing: 0.5px; }
+            .gc-role.vip { background: #fbbf24; color: #1a1a1a; }
+            .gc-role.admin { background: #a78bfa; color: #fff; }
+            .gc-bubble {
+                border: 2px solid var(--border); box-shadow: 2px 2px 0px var(--border);
+                padding: 9px 12px; font-size: 13.5px; font-weight: 600; line-height: 1.5; word-break: break-word;
+            }
+            .gc-row.me .gc-bubble { background: var(--primary); color: #fff; }
+            .gc-row.them .gc-bubble { background: var(--surface); color: var(--text); }
+            .gc-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+            .gc-time { font-size: 10px; font-weight: 700; color: var(--text-secondary); }
+            .gc-del { background: none; border: none; color: var(--text-secondary); font-size: 10.5px; cursor: pointer; padding: 2px 4px; opacity: 0.7; }
+            .gc-del.confirm { color: #ef4444; font-weight: 800; opacity: 1; }
+            .gc-new-chip {
+                display: none; align-items: center; gap: 6px;
+                position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+                background: var(--primary); color: #fff; cursor: pointer;
+                border: 2px solid var(--border); box-shadow: 3px 3px 0px var(--border);
+                padding: 7px 12px; font-size: 11px; font-weight: 800;
+            }
+            .gc-new-chip.show { display: flex; }
+            .gc-notice {
+                display: none; align-items: center; gap: 10px; flex-shrink: 0;
+                padding: 10px 12px; border-top: 3px solid var(--border);
+                background: var(--chip-bg); font-size: 12px; font-weight: 700; color: var(--text);
+            }
+            .gc-notice.show { display: flex; }
+            .gc-notice > i { color: #fbbf24; font-size: 18px; flex-shrink: 0; }
+            .gc-notice-text { flex: 1; min-width: 0; line-height: 1.45; }
+            .gc-notice-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+            .gc-notice-btn {
+                background: var(--surface); color: var(--text); cursor: pointer;
+                border: 2px solid var(--border); padding: 6px 10px; font-size: 11px; font-weight: 800;
+            }
+            .gc-notice-btn.primary { background: var(--primary); color: #fff; }
+            .gc-notice-btn:active { transform: translate(2px, 2px); }
+            .gc-overlay.is-locked .kons-text-input { opacity: 0.6; cursor: not-allowed; }
+            .gc-overlay.is-locked .kons-send-btn { background: var(--surface); color: var(--text-secondary); }
+            .kons-send-btn:disabled { opacity: 0.6; cursor: default; }
+
+            /* Menu bawah kini berisi 5 tombol; di layar sempit tombolnya menyusut sama rata
+               supaya tombol Profile tidak terpotong dan menu tidak perlu digeser. */
+            @media (max-width: 420px) {
+                .bottom-nav { gap: 2px; padding-left: 3px; padding-right: 3px; }
+                .nav-item { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: 9.5px; letter-spacing: 0.2px; }
+            }
+            @media (max-width: 350px) {
+                .nav-item { font-size: 8.5px; letter-spacing: 0; }
+            }
+
             /* ---- Panel VIP: create/hapus/lihat akun user (khusus role VIP) ---- */
             .vip-overlay { z-index: 270; }
             .vip-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
@@ -5384,6 +5452,40 @@
                 </div>
             </div>
 
+            <!-- Chat Global: ruang obrolan bersama VIP & ADMIN (USER hanya bisa membaca), real-time via Firebase -->
+            <div class="ann-overlay gc-overlay" id="globalChatOverlay">
+                <div class="ann-header">
+                    <button class="icon-btn" title="Kembali" onclick="window.closeGlobalChat()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="kons-header-mid">
+                        <span class="ann-header-title">Chat Global</span>
+                        <span class="kons-header-sub" id="gcHeaderSub">Ngobrol bareng VIP &amp; ADMIN</span>
+                    </div>
+                    <div class="gc-header-ico"><i class="fas fa-globe"></i></div>
+                </div>
+                <div class="gc-stage">
+                    <div class="gc-messages" id="gcMessages"></div>
+                    <button type="button" class="gc-new-chip" id="gcNewChip" onclick="window._gcScrollBottom()">
+                        <i class="fas fa-arrow-down"></i> <span id="gcNewChipText">Pesan baru</span>
+                    </button>
+                </div>
+                <div class="gc-notice" id="gcNotice">
+                    <i class="fas fa-crown"></i>
+                    <div class="gc-notice-text">Chat global khusus <b>VIP &amp; ADMIN</b>. Upgrade ke VIP supaya kamu bisa ikut mengirim pesan.</div>
+                    <div class="gc-notice-actions">
+                        <button type="button" class="gc-notice-btn primary" onclick="window._gcOpenPricing()">Lihat Paket</button>
+                        <button type="button" class="gc-notice-btn" onclick="window._gcHideNotice()">Nanti</button>
+                    </div>
+                </div>
+                <div class="kons-input-bar">
+                    <input type="text" class="kons-text-input" id="gcInput" maxlength="500" placeholder="Tulis pesan..." autocomplete="off" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();window._gcSend();}">
+                    <button type="button" class="kons-send-btn" id="gcSendBtn" title="Kirim" onclick="window._gcSend()">
+                        <i class="fas fa-paper-plane" id="gcSendIco"></i>
+                    </button>
+                </div>
+            </div>
+
             <!-- Panel VIP: create/hapus/lihat akun user, khusus role VIP, real-time via Firebase -->
             <div class="ann-overlay vip-overlay" id="vipPanelOverlay">
                 <div class="ann-header">
@@ -5515,7 +5617,7 @@
             // =====================================================================
 
             /* ---- Runtime Decryption ---- */
-            const _b = "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";
+            const _b = "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";
             const _k = "H1dzS3cr3tK3y2025!";
 
             /* ---- Decryption function (XOR + atob) — runs once at init ---- */
@@ -5608,6 +5710,18 @@
                     .trim()
                     .replace(/[^a-z0-9]+/g, '-')
                     .replace(/^-+|-+$/g, '');
+            }
+
+            // Project bertanda vipOnly hanya boleh dibuka role VIP & ADMIN. Daftar utama
+            // sudah memfilternya sendiri; fungsi ini menutup pintu masuk lain (link
+            // langsung, Riwayat, openDetail) yang tidak lewat daftar itu.
+            function canOpenProject(proj) {
+                var canon = proj && projects.find(function(p) { return p.name === proj.name; });
+                if (!canon || !canon.vipOnly) return true;
+                var role;
+                try { role = (JSON.parse(localStorage.getItem('hidz_session') || '{}')).role || 'user'; }
+                catch (e) { role = 'user'; }
+                return role === 'vip' || role === 'admin';
             }
 
             window.openProjectFromUrl = function() {
@@ -5721,7 +5835,7 @@
                 const tsMap = getRecentTimestamps();
                 const histProjs = getRecent()
                     .map(n => projects.find(p => p.name === n))
-                    .filter(Boolean);
+                    .filter(proj => proj && canOpenProject(proj));
                 if (!histProjs.length) {
                     wrap.innerHTML =
                         '<div class="ann-empty"><i class="fas fa-clock-rotate-left" style="font-size:22px;display:block;margin-bottom:10px;opacity:.35;"></i>Belum ada riwayat aktivitas.</div>';
@@ -6078,6 +6192,10 @@
                     '<button class="nav-item" onclick="window.openKonseling()"><i class="fas fa-headset"></i> <span>Konseling</span>' +
                     '<span class="kons-nav-dot' + (window._konsUnread ? ' show' : '') + '"></span></button>';
 
+                // Tombol Chat Global — obrolan bersama VIP & ADMIN (USER hanya bisa membaca)
+                navHtml +=
+                    '<button class="nav-item" onclick="window.openGlobalChat()"><i class="fas fa-globe"></i> <span>Global</span></button>';
+
                 // Akun tab
                 navHtml +=
                     '<button class="nav-item ' +
@@ -6395,6 +6513,10 @@
             }
 
             window.openDetail = proj => {
+                if (!canOpenProject(proj)) {
+                    showHzToast(proj.name + ' khusus untuk VIP & ADMIN');
+                    return;
+                }
                 addRecent(proj.name);
                 markRecentTimestamp(proj.name);
                 markProjectSeen(proj.name);
@@ -7297,6 +7419,7 @@
                 _refreshProfileDuration(cur);
                 if (roleChanged) {
                     try { rebuildUIPreserveScroll(); buildHamburgerMenu(); } catch (e) {}
+                    if (typeof window._gcApplyRole === 'function') window._gcApplyRole();
                 }
                 if (typeof window._prcRefreshHeaderLive === 'function') window._prcRefreshHeaderLive();
             }
@@ -9524,6 +9647,342 @@
                 if (uid === _uid || uid === (window._hidzAdminUid || 'admin_hidz_protected')) renderMsgs();
             });
 
+        })();
+        </script>
+
+        <!-- ============================================================
+             FITUR CHAT GLOBAL - ruang obrolan bersama untuk role VIP & ADMIN
+             (real-time via Firebase). USER hanya bisa membaca: kolom ketik
+             terkunci dan tombol kirim menampilkan ajakan upgrade ke VIP.
+             Membaca langsung dari Firebase; mengirim & menghapus lewat
+             /api/chat/send dan /api/chat/delete, yang mengecek role ke
+             database di setiap request. Modul terpisah & mandiri, tidak
+             menyentuh logika login/sesi/maintenance/project yang sudah ada.
+             ============================================================ -->
+        <script>
+        (function () {
+            'use strict';
+
+            var GC_REF        = 'hidz_global_chat/messages';
+            var GC_LIMIT      = 100;             // jumlah pesan terbaru yang dimuat
+            var GC_MIN_GAP_MS = 2000;            // jeda minimal antar kirim dari satu perangkat
+            var GC_GROUP_MS   = 5 * 60 * 1000;   // pesan beruntun dari orang yang sama dirapatkan
+
+            var _open        = false;
+            var _query       = null;     // query Firebase yang sedang didengarkan
+            var _msgs        = {};       // pushKey -> pesan
+            var _openedAt    = 0;
+            var _loaded      = false;
+            var _failed      = false;
+            var _sending     = false;
+            var _lastSendAt  = 0;
+            var _unseen      = 0;        // pesan baru dari orang lain saat layar tidak di paling bawah
+            var _renderQueued = false;
+            var _delKey      = null;     // pesan yang sedang menunggu konfirmasi hapus
+            var _delTimer    = null;
+
+            function getGcSession() {
+                try { return JSON.parse(localStorage.getItem('hidz_session') || '{}'); }
+                catch (e) { return {}; }
+            }
+            function myRole() {
+                var r = getGcSession().role;
+                return (r === 'vip' || r === 'admin') ? r : 'user';
+            }
+            function canSend() { return myRole() !== 'user'; }
+            function myUid() {
+                try { if (firebase.auth().currentUser) return firebase.auth().currentUser.uid; } catch (e) {}
+                return getGcSession().id || '';
+            }
+            function escGc(str) {
+                return String(str == null ? '' : str)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
+            function fmtGcTime(ts) {
+                var d = new Date(ts);
+                return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+            }
+            function gcDayLabel(ts) {
+                var d = new Date(ts), now = new Date();
+                var start = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+                var diffDays = Math.round((start(now) - start(d)) / 86400000);
+                if (diffDays === 0) return 'Hari ini';
+                if (diffDays === 1) return 'Kemarin';
+                return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+            }
+            function ensureFb(cb) {
+                try {
+                    if (typeof firebase !== 'undefined' && firebase.apps.length) { cb(); return; }
+                } catch (e) {}
+                setTimeout(function () { ensureFb(cb); }, 700);
+            }
+
+            /* ---------- tampilan ---------- */
+            function stateHtml(icon, text) {
+                return '<div class="kons-empty"><i class="fas ' + icon + '"></i><p>' + text + '</p></div>';
+            }
+
+            function applyRole() {
+                var overlay = document.getElementById('globalChatOverlay');
+                if (!overlay) return;
+                var can = canSend();
+                var input = document.getElementById('gcInput');
+                var ico = document.getElementById('gcSendIco');
+                var sub = document.getElementById('gcHeaderSub');
+                overlay.classList.toggle('is-locked', !can);
+                if (input) {
+                    input.readOnly = !can;
+                    input.placeholder = can ? 'Tulis pesan...' : 'Khusus VIP & ADMIN';
+                    if (!can) input.value = '';
+                }
+                if (ico) ico.className = 'fas ' + (can ? 'fa-paper-plane' : 'fa-lock');
+                if (sub) sub.textContent = can ? 'Ngobrol bareng VIP & ADMIN' : 'Mode baca. Kirim pesan khusus VIP & ADMIN';
+                if (can) hideNotice();
+                if (_open) scheduleRender();
+            }
+
+            function scheduleRender() {
+                if (_renderQueued) return;
+                _renderQueued = true;
+                requestAnimationFrame(function () { _renderQueued = false; render(); });
+            }
+
+            function messageHtml(m, k, prev, me, isAdmin) {
+                var lead = !prev || prev.uid !== m.uid || (m.ts - prev.ts) > GC_GROUP_MS;
+                var mine = (m.uid === me);
+                var role = (m.role === 'vip' || m.role === 'admin') ? m.role : '';
+                var html = '<div class="gc-row ' + (mine ? 'me' : 'them') + (lead ? ' lead' : '') + '"><div class="gc-wrap">';
+                if (lead && !mine) {
+                    html += '<div class="gc-sender">' + escGc(m.name || 'User') +
+                        (role ? '<span class="gc-role ' + role + '">' + role.toUpperCase() + '</span>' : '') + '</div>';
+                }
+                html += '<div class="gc-bubble">' + escGc(m.text) + '</div>' +
+                    '<div class="gc-meta"><span class="gc-time">' + fmtGcTime(m.ts) + '</span>';
+                if (mine || isAdmin) {
+                    html += '<button type="button" class="gc-del" data-key="' + escGc(k) + '" title="Hapus pesan"><i class="fas fa-trash"></i></button>';
+                }
+                return html + '</div></div></div>';
+            }
+
+            function render() {
+                var box = document.getElementById('gcMessages');
+                if (!box || !_open) return;
+                if (_failed) { box.innerHTML = stateHtml('fa-triangle-exclamation', 'Chat global belum bisa dimuat.<br>Periksa koneksi lalu buka ulang.'); return; }
+                if (!_loaded) { box.innerHTML = stateHtml('fa-spinner fa-spin', 'Memuat pesan...'); return; }
+
+                var keys = Object.keys(_msgs).sort();
+                if (!keys.length) {
+                    box.innerHTML = stateHtml('fa-comments', canSend()
+                        ? 'Belum ada pesan.<br>Jadilah yang pertama menyapa!'
+                        : 'Belum ada pesan di chat global.');
+                    return;
+                }
+
+                var atBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 80;
+                var wasEmpty = !box.querySelector('.gc-row');
+                var me = myUid(), isAdmin = (myRole() === 'admin');
+                var html = '', prev = null, prevDay = '';
+                keys.forEach(function (k) {
+                    var m = _msgs[k];
+                    var day = gcDayLabel(m.ts);
+                    if (day !== prevDay) { html += '<div class="kons-day-sep">' + day + '</div>'; prevDay = day; prev = null; }
+                    html += messageHtml(m, k, prev, me, isAdmin);
+                    prev = m;
+                });
+                box.innerHTML = html;
+                _delKey = null;
+
+                if (atBottom || wasEmpty) { box.scrollTop = box.scrollHeight; _unseen = 0; }
+                updateChip();
+            }
+
+            function updateChip() {
+                var chip = document.getElementById('gcNewChip');
+                var txt = document.getElementById('gcNewChipText');
+                if (!chip) return;
+                chip.classList.toggle('show', _unseen > 0);
+                if (txt) txt.textContent = _unseen > 1 ? (_unseen + ' pesan baru') : 'Pesan baru';
+            }
+
+            window._gcScrollBottom = function () {
+                var box = document.getElementById('gcMessages');
+                if (box) box.scrollTop = box.scrollHeight;
+                _unseen = 0;
+                updateChip();
+            };
+
+            /* ---------- notice upgrade (khusus USER) ---------- */
+            function showNotice() {
+                var el = document.getElementById('gcNotice');
+                if (el) el.classList.add('show');
+            }
+            function hideNotice() {
+                var el = document.getElementById('gcNotice');
+                if (el) el.classList.remove('show');
+            }
+            window._gcHideNotice = hideNotice;
+            window._gcOpenPricing = function () {
+                window.closeGlobalChat();
+                if (typeof window.openPricingSheet === 'function') window.openPricingSheet();
+            };
+
+            /* ---------- Firebase (baca real-time) ---------- */
+            function onAdded(snap) {
+                var m = snap.val();
+                if (!m || typeof m.text !== 'string' || typeof m.ts !== 'number') return;
+                _msgs[snap.key] = m;
+                if (_loaded && m.uid !== myUid() && m.ts > _openedAt) {
+                    var box = document.getElementById('gcMessages');
+                    if (box && (box.scrollHeight - box.scrollTop - box.clientHeight) >= 80) { _unseen++; }
+                }
+                scheduleRender();
+            }
+            function onRemoved(snap) {
+                delete _msgs[snap.key];
+                scheduleRender();
+            }
+            function onFail(err) {
+                console.error('[ChatGlobal] gagal membaca pesan', err);
+                _failed = true;
+                scheduleRender();
+            }
+
+            function attach() {
+                ensureFb(function () {
+                    if (!_open || _query) return;
+                    var q = firebase.database().ref(GC_REF).orderByKey().limitToLast(GC_LIMIT);
+                    _query = q;
+                    q.on('child_added', onAdded, onFail);
+                    q.on('child_removed', onRemoved, onFail);
+                    q.once('value', function () { _loaded = true; _failed = false; scheduleRender(); }, onFail);
+                });
+            }
+            function detach() {
+                if (_query) { try { _query.off(); } catch (e) {} }
+                _query = null;
+            }
+
+            /* ---------- kirim & hapus (lewat API, role dicek ulang di server) ---------- */
+            function postChat(path, payload) {
+                var user = null;
+                try { user = firebase.auth().currentUser; } catch (e) {}
+                if (!user) return Promise.reject(new Error('NO_AUTH'));
+                return user.getIdToken(false).then(function (token) {
+                    return fetch(path, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                        body: JSON.stringify(payload)
+                    }).then(function (r) { return r.json(); });
+                });
+            }
+
+            function setSending(on) {
+                _sending = on;
+                var btn = document.getElementById('gcSendBtn');
+                if (btn) btn.disabled = on;
+            }
+
+            window._gcSend = function () {
+                if (!canSend()) { showNotice(); return; }
+                var input = document.getElementById('gcInput');
+                var text = input ? input.value.trim() : '';
+                if (!text || _sending) return;
+                if (Date.now() - _lastSendAt < GC_MIN_GAP_MS) { showHzToast('Tunggu sebentar sebelum mengirim lagi'); return; }
+
+                setSending(true);
+                postChat('/api/chat/send', { chatText: text }).then(function (res) {
+                    if (res && res.ok) {
+                        _lastSendAt = Date.now();
+                        if (input && input.value.trim() === text) input.value = '';
+                        return;
+                    }
+                    var reason = res && res.reason;
+                    if (reason === 'vip_required') { showNotice(); return; }
+                    if (reason === 'expired' || reason === 'not_found' || reason === 'auth_required') { showHzToast('Sesi tidak valid, silakan login ulang'); return; }
+                    if (reason === 'slow_down') { showHzToast('Tunggu sebentar sebelum mengirim lagi'); return; }
+                    showHzToast((res && res.message) || 'Gagal mengirim pesan, coba lagi');
+                }).catch(function (err) {
+                    console.error('[ChatGlobal] gagal kirim', err);
+                    showHzToast('Gagal terhubung ke server, coba lagi');
+                }).then(function () { setSending(false); });
+            };
+
+            function deleteMessage(key) {
+                postChat('/api/chat/delete', { messageId: key }).then(function (res) {
+                    if (res && res.ok) { delete _msgs[key]; scheduleRender(); return; }
+                    showHzToast((res && res.message) || 'Gagal menghapus pesan');
+                }).catch(function (err) {
+                    console.error('[ChatGlobal] gagal hapus', err);
+                    showHzToast('Gagal terhubung ke server, coba lagi');
+                });
+            }
+
+            /* Hapus dua langkah: ketuk sekali -> "Hapus?", ketuk lagi dalam 3 detik -> terhapus */
+            function onMessagesClick(e) {
+                var btn = e.target.closest ? e.target.closest('.gc-del') : null;
+                if (!btn) return;
+                var key = btn.getAttribute('data-key');
+                if (_delKey === key) {
+                    clearTimeout(_delTimer);
+                    _delKey = null;
+                    deleteMessage(key);
+                    return;
+                }
+                var prevBtn = document.querySelector('.gc-del.confirm');
+                if (prevBtn) { prevBtn.classList.remove('confirm'); prevBtn.innerHTML = '<i class="fas fa-trash"></i>'; }
+                _delKey = key;
+                btn.classList.add('confirm');
+                btn.innerHTML = '<i class="fas fa-trash"></i> Hapus?';
+                clearTimeout(_delTimer);
+                _delTimer = setTimeout(function () {
+                    _delKey = null;
+                    if (btn.isConnected) { btn.classList.remove('confirm'); btn.innerHTML = '<i class="fas fa-trash"></i>'; }
+                }, 3000);
+            }
+
+            function onMessagesScroll() {
+                var box = document.getElementById('gcMessages');
+                if (box && _unseen && (box.scrollHeight - box.scrollTop - box.clientHeight) < 80) { _unseen = 0; updateChip(); }
+            }
+
+            /* ---------- buka / tutup ---------- */
+            window.openGlobalChat = function () {
+                var sess = getGcSession();
+                if (!sess || !sess.id) { showHzToast('Silakan login ulang dulu ya'); return; }
+                var overlay = document.getElementById('globalChatOverlay');
+                if (!overlay) return;
+                _open = true;
+                _openedAt = Date.now();
+                _msgs = {};
+                _loaded = false;
+                _failed = false;
+                _unseen = 0;
+                hideNotice();
+                applyRole();
+                overlay.classList.add('open');
+                updateChip();
+                render();
+                attach();
+            };
+            window.closeGlobalChat = function () {
+                var overlay = document.getElementById('globalChatOverlay');
+                if (overlay) overlay.classList.remove('open');
+                _open = false;
+                detach();
+                hideNotice();
+                clearTimeout(_delTimer);
+                _delKey = null;
+            };
+
+            /* Dipanggil saat role akun berubah di tengah sesi (mis. baru membeli VIP) */
+            window._gcApplyRole = applyRole;
+
+            var box = document.getElementById('gcMessages');
+            if (box) {
+                box.addEventListener('click', onMessagesClick);
+                box.addEventListener('scroll', onMessagesScroll, { passive: true });
+            }
         })();
         </script>
 

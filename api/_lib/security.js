@@ -178,6 +178,10 @@ function textFromBody(body, out) {
         /* Never scan password values. A password is opaque data and should
            not be treated as an attack merely because it contains punctuation. */
         if (/password/i.test(k)) return;
+        /* Teks Chat Global adalah tulisan bebas pengguna yang hanya disimpan dan
+           ditampilkan sebagai teks biasa (selalu di-escape). Kalau ikut dipindai,
+           kalimat wajar seperti "1 and 1=1" bisa memblokir IP pengirimnya 24 jam. */
+        if (k === 'chatText') return;
         var v = body[k];
         if (typeof v === 'string' || typeof v === 'number') out.push(String(v));
         else if (v && typeof v === 'object') textFromBody(v, out);

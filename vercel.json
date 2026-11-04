@@ -29,6 +29,14 @@
       "destination": "/api/check-session?vipAction=webhook"
     },
     {
+      "source": "/api/chat/send",
+      "destination": "/api/check-session?vipAction=chat-send"
+    },
+    {
+      "source": "/api/chat/delete",
+      "destination": "/api/check-session?vipAction=chat-delete"
+    },
+    {
       "source": "/paket",
       "destination": "/paket.html"
     },

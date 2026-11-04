@@ -89,6 +89,12 @@
         ".write": "auth != null && (auth.uid === $userId || auth.token.admin === true)"
       }
     },
+    "hidz_global_chat": {
+      "messages": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
     "hidz_user_photos": {
       "$userId": {
         ".read": "auth != null && (auth.uid === $userId || $userId === \"admin_hidz_protected\" || auth.token.admin === true)",
