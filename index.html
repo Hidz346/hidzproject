@@ -3179,6 +3179,7 @@
             .hzn-icon.reset_password  { background: var(--y2k-accent); }
             .hzn-icon.duration_added  { background: var(--y2k-lime); }
             .hzn-icon.role_upgraded   { background: #fbbf24; }
+            .hzn-icon.voucher_new     { background: #a78bfa; }
             .hzn-title {
                 font-family: 'Orbitron', sans-serif;
                 font-size: 14px; font-weight: 900;
@@ -6908,7 +6909,7 @@
             var INBOX_MAX_SHOWS  = 3;            /* satu pesan tampil paling banyak 3 kali (sekali per membuka halaman) */
 
             var PUSH_SUPPORTED = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
-            var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', project_new: 'fa-rocket' };
+            var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', project_new: 'fa-rocket', voucher_new: 'fa-ticket-alt' };
 
             function byId(id) { return document.getElementById(id); }
             function deviceId() { return localStorage.getItem(DEVICE_KEY) || ''; }
