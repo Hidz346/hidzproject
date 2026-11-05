@@ -2801,15 +2801,32 @@
             .gc-overlay.is-locked .kons-send-btn { background: var(--surface); color: var(--text-secondary); }
             .kons-send-btn:disabled { opacity: 0.6; cursor: default; }
 
-            /* Menu bawah kini berisi 5 tombol; di layar sempit tombolnya menyusut sama rata
-               supaya tombol Profile tidak terpotong dan menu tidak perlu digeser. */
-            @media (max-width: 420px) {
-                .bottom-nav { gap: 2px; padding-left: 3px; padding-right: 3px; }
-                .nav-item { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: 9.5px; letter-spacing: 0.2px; }
+            /* ---- Chat: satu tombol di menu bawah yang berisi Konseling dan Chat Global ---- */
+            .chathub-body { display: flex; flex-direction: column; gap: 14px; }
+            .chathub-card {
+                display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+                background: var(--surface); color: var(--text); cursor: pointer; font-family: inherit;
+                border: 3px solid var(--border); box-shadow: 4px 4px 0px var(--border);
+                padding: 14px;
             }
-            @media (max-width: 350px) {
-                .nav-item { font-size: 8.5px; letter-spacing: 0; }
+            .chathub-card:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0px var(--border); }
+            .chathub-ico {
+                width: 46px; height: 46px; flex-shrink: 0;
+                display: flex; align-items: center; justify-content: center; font-size: 20px;
+                background: var(--chip-bg); color: var(--text);
+                border: 2px solid var(--border); box-shadow: 2px 2px 0px var(--border);
             }
+            .chathub-ico.global { background: var(--primary); color: #fff; }
+            .chathub-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+            .chathub-info b { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; }
+            .chathub-info small { font-size: 11.5px; font-weight: 600; line-height: 1.4; color: var(--text-secondary); }
+            .chathub-badge {
+                display: none; min-width: 20px; padding: 2px 7px; text-align: center;
+                background: #ff3b30; color: #fff; font-size: 10px; font-weight: 800;
+                border: 1.5px solid var(--border);
+            }
+            .chathub-badge.show { display: inline-block; }
+            .chathub-arrow { flex-shrink: 0; font-size: 12px; color: var(--text-secondary); }
 
             /* ---- Panel VIP: create/hapus/lihat akun user (khusus role VIP) ---- */
             .vip-overlay { z-index: 270; }
@@ -3161,6 +3178,7 @@
             }
             .hzn-icon.reset_password  { background: var(--y2k-accent); }
             .hzn-icon.duration_added  { background: var(--y2k-lime); }
+            .hzn-icon.role_upgraded   { background: #fbbf24; }
             .hzn-title {
                 font-family: 'Orbitron', sans-serif;
                 font-size: 14px; font-weight: 900;
@@ -5452,6 +5470,34 @@
                 </div>
             </div>
 
+            <!-- Chat: satu pintu untuk Konseling (chat dengan admin) dan Chat Global -->
+            <div class="ann-overlay chathub-overlay" id="chatHubOverlay">
+                <div class="ann-header">
+                    <button class="icon-btn" title="Kembali" onclick="window.closeChatHub()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="kons-header-mid">
+                        <span class="ann-header-title">Chat</span>
+                        <span class="kons-header-sub">Pilih ruang obrolan</span>
+                    </div>
+                    <div style="width: 36px"></div>
+                </div>
+                <div class="ann-body chathub-body">
+                    <button type="button" class="chathub-card" onclick="window._chatHubGo('kons')">
+                        <span class="chathub-ico"><i class="fas fa-headset"></i></span>
+                        <span class="chathub-info"><b>Konseling</b><small>Chat langsung dengan admin</small></span>
+                        <span class="chathub-badge" id="chatHubKonsBadge">Baru</span>
+                        <i class="fas fa-chevron-right chathub-arrow"></i>
+                    </button>
+                    <button type="button" class="chathub-card" onclick="window._chatHubGo('global')">
+                        <span class="chathub-ico global"><i class="fas fa-globe"></i></span>
+                        <span class="chathub-info"><b>Chat Global</b><small id="chatHubGlobalSub">Ngobrol bareng VIP &amp; ADMIN</small></span>
+                        <span class="chathub-badge" id="chatHubGlobalBadge">0</span>
+                        <i class="fas fa-chevron-right chathub-arrow"></i>
+                    </button>
+                </div>
+            </div>
+
             <!-- Chat Global: ruang obrolan bersama VIP & ADMIN (USER hanya bisa membaca), real-time via Firebase -->
             <div class="ann-overlay gc-overlay" id="globalChatOverlay">
                 <div class="ann-header">
@@ -6187,14 +6233,11 @@
                 navHtml +=
                     '<button class="nav-item" onclick="window.openPricingSheet()"><i class="fas fa-crown"></i> <span>Pricing</span></button>';
 
-                // Tombol Konseling — chat langsung dengan admin, titik merah muncul kalau ada balasan baru
+                // Tombol Chat — pintu ke Konseling (chat dengan admin) dan Chat Global.
+                // Titik merah muncul kalau ada balasan admin atau pesan baru di Chat Global.
                 navHtml +=
-                    '<button class="nav-item" onclick="window.openKonseling()"><i class="fas fa-headset"></i> <span>Konseling</span>' +
-                    '<span class="kons-nav-dot' + (window._konsUnread ? ' show' : '') + '"></span></button>';
-
-                // Tombol Chat Global — obrolan bersama VIP & ADMIN (USER hanya bisa membaca)
-                navHtml +=
-                    '<button class="nav-item" onclick="window.openGlobalChat()"><i class="fas fa-globe"></i> <span>Global</span></button>';
+                    '<button class="nav-item" onclick="window.openChatHub()"><i class="fas fa-comments"></i> <span>Chat</span>' +
+                    '<span class="kons-nav-dot' + ((window._konsUnread || window._gcUnread > 0) ? ' show' : '') + '"></span></button>';
 
                 // Akun tab
                 navHtml +=
@@ -6860,7 +6903,7 @@
             var INBOX_MAX_SHOWS  = 3;            /* satu pesan tampil paling banyak 3 kali (sekali per membuka halaman) */
 
             var PUSH_SUPPORTED = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
-            var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', project_new: 'fa-rocket' };
+            var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', project_new: 'fa-rocket' };
 
             function byId(id) { return document.getElementById(id); }
             function deviceId() { return localStorage.getItem(DEVICE_KEY) || ''; }
@@ -6931,9 +6974,9 @@
                 /* Notifikasi Chrome untuk pesan yang sama (kalau sempat muncul) tidak perlu lagi. */
                 closeSystemNotification(item.id);
 
-                /* Durasi baru cukup disegarkan di tampilan pertama; pada tampilan
-                   berikutnya halaman sudah memuat data terbaru dari awal. */
-                if (type === 'duration_added' && !item.note.shown && typeof onDurationChange === 'function') onDurationChange();
+                /* Durasi baru (atau upgrade ke VIP) cukup disegarkan di tampilan pertama; pada
+                   tampilan berikutnya halaman sudah memuat data terbaru dari awal. */
+                if ((type === 'duration_added' || type === 'role_upgraded') && !item.note.shown && typeof onDurationChange === 'function') onDurationChange();
             }
 
             function startInbox(userId) {
@@ -9600,8 +9643,7 @@
                         .catch(function (err) { console.error('[Konseling] gagal update status baca', err); });
                 });
                 window._konsUnread = false;
-                var dot = document.querySelector('.kons-nav-dot');
-                if (dot) dot.classList.remove('show');
+                if (typeof window._refreshChatUnread === 'function') window._refreshChatUnread();
             };
             window.closeKonseling = function () {
                 var overlay = document.getElementById('konselingOverlay');
@@ -9618,8 +9660,7 @@
                     firebase.database().ref(KONS_META_REF + '/' + sess.id + '/unreadUser').on('value', function (snap) {
                         var val = snap.val();
                         window._konsUnread = !!(val && val > 0);
-                        var dot = document.querySelector('.kons-nav-dot');
-                        if (dot) dot.classList.toggle('show', window._konsUnread);
+                        if (typeof window._refreshChatUnread === 'function') window._refreshChatUnread();
                     }, function (err) { console.error('[Konseling] gagal pantau unreadUser', err); });
                 });
             }
@@ -9737,7 +9778,9 @@
                     if (!can) input.value = '';
                 }
                 if (ico) ico.className = 'fas ' + (can ? 'fa-paper-plane' : 'fa-lock');
+                var hubSub = document.getElementById('chatHubGlobalSub');
                 if (sub) sub.textContent = can ? 'Ngobrol bareng VIP & ADMIN' : 'Mode baca. Kirim pesan khusus VIP & ADMIN';
+                if (hubSub) hubSub.textContent = can ? 'Ngobrol bareng VIP & ADMIN' : 'Mode baca. Kirim pesan khusus VIP & ADMIN';
                 if (can) hideNotice();
                 if (_open) scheduleRender();
             }
@@ -9824,6 +9867,7 @@
             window._gcHideNotice = hideNotice;
             window._gcOpenPricing = function () {
                 window.closeGlobalChat();
+                window.closeChatHub();
                 if (typeof window.openPricingSheet === 'function') window.openPricingSheet();
             };
 
@@ -9954,6 +9998,7 @@
                 if (!overlay) return;
                 _open = true;
                 _openedAt = Date.now();
+                markRead();
                 _msgs = {};
                 _loaded = false;
                 _failed = false;
@@ -9968,11 +10013,128 @@
             window.closeGlobalChat = function () {
                 var overlay = document.getElementById('globalChatOverlay');
                 if (overlay) overlay.classList.remove('open');
+                markRead();
                 _open = false;
                 detach();
                 hideNotice();
                 clearTimeout(_delTimer);
                 _delKey = null;
+            };
+
+            /* ---------- penanda pesan baru (titik merah) ----------
+               Dipantau sejak login, bukan hanya saat Chat Global dibuka. Yang dihitung hanya pesan dari
+               orang lain yang masuk setelah terakhir kali Chat Global dibuka. Pesan lama tidak dibaca
+               ulang: pemantauan dimulai dari waktu terakhir dibaca, jadi bebannya kecil. */
+            var SEEN_PREFIX = 'hidz_gc_seen_';
+            var _watchQuery = null;
+            var _watchUid   = '';
+            var _seenTs     = 0;
+            var _unreadKeys = {};      // pushKey -> ts pesan yang belum dibaca
+            window._gcUnread = 0;
+
+            function seenStoreKey() { return SEEN_PREFIX + _watchUid; }
+            function saveSeenTs(v) {
+                try { localStorage.setItem(seenStoreKey(), String(v)); } catch (e) {}
+            }
+            function loadSeenTs() {
+                var v = 0;
+                try { v = parseInt(localStorage.getItem(seenStoreKey()), 10) || 0; } catch (e) {}
+                /* Pertama kali di perangkat ini: pesan yang sudah ada tidak dihitung belum dibaca */
+                if (v <= 0) { v = Date.now(); saveSeenTs(v); }
+                return v;
+            }
+            function advanceSeen(ts) {
+                if (ts > _seenTs) { _seenTs = ts; saveSeenTs(ts); }
+            }
+            function setUnread() {
+                window._gcUnread = Object.keys(_unreadKeys).length;
+                if (typeof window._refreshChatUnread === 'function') window._refreshChatUnread();
+            }
+            /* Semua pesan yang sudah tampil dianggap terbaca */
+            function markRead() {
+                var latest = _seenTs;
+                Object.keys(_unreadKeys).forEach(function (k) { if (_unreadKeys[k] > latest) latest = _unreadKeys[k]; });
+                Object.keys(_msgs).forEach(function (k) { if (_msgs[k].ts > latest) latest = _msgs[k].ts; });
+                advanceSeen(latest);
+                _unreadKeys = {};
+                setUnread();
+            }
+            function onWatchAdded(snap) {
+                var m = snap.val();
+                if (!m || typeof m.ts !== 'number' || m.ts <= _seenTs || m.uid === myUid()) return;
+                if (_open) { advanceSeen(m.ts); return; }
+                _unreadKeys[snap.key] = m.ts;
+                setUnread();
+            }
+            function onWatchRemoved(snap) {
+                if (_unreadKeys[snap.key] === undefined) return;
+                delete _unreadKeys[snap.key];
+                setUnread();
+            }
+            function onWatchFail(err) {
+                /* Biasanya karena Rules Firebase belum di-publish; titik merah saja yang tidak muncul */
+                try { console.warn('[ChatGlobal] pesan baru tidak bisa dipantau:', err && err.code); } catch (e) {}
+            }
+            function startWatch(uid) {
+                if (_watchQuery && _watchUid === uid) return;
+                stopWatch();
+                _watchUid = uid;
+                _seenTs = loadSeenTs();
+                ensureFb(function () {
+                    if (_watchUid !== uid || _watchQuery) return;
+                    var q = firebase.database().ref(GC_REF).orderByKey()
+                        .startAt(String(_seenTs).padStart(13, '0')).limitToLast(GC_LIMIT);
+                    _watchQuery = q;
+                    q.on('child_added', onWatchAdded, onWatchFail);
+                    q.on('child_removed', onWatchRemoved, onWatchFail);
+                });
+            }
+            function stopWatch() {
+                if (_watchQuery) { try { _watchQuery.off(); } catch (e) {} }
+                _watchQuery = null;
+                _watchUid = '';
+                _unreadKeys = {};
+                setUnread();
+            }
+            ensureFb(function () {
+                try {
+                    firebase.auth().onAuthStateChanged(function (user) {
+                        if (user && !user.isAnonymous) startWatch(user.uid);
+                        else stopWatch();
+                    });
+                } catch (e) {}
+            });
+
+            /* Titik merah di tombol Chat + lencana di halaman Chat: gabungan balasan admin (Konseling)
+               dan pesan baru di Chat Global */
+            window._refreshChatUnread = function () {
+                var kons = !!window._konsUnread;
+                var gc = window._gcUnread || 0;
+                var dot = document.querySelector('.kons-nav-dot');
+                if (dot) dot.classList.toggle('show', kons || gc > 0);
+                var kb = document.getElementById('chatHubKonsBadge');
+                if (kb) kb.classList.toggle('show', kons);
+                var gb = document.getElementById('chatHubGlobalBadge');
+                if (gb) { gb.textContent = gc > 99 ? '99+' : String(gc); gb.classList.toggle('show', gc > 0); }
+            };
+
+            /* ---------- halaman Chat: pilih Konseling atau Chat Global ---------- */
+            window.openChatHub = function () {
+                var sess = getGcSession();
+                if (!sess || !sess.id) { showHzToast('Silakan login ulang dulu ya'); return; }
+                var overlay = document.getElementById('chatHubOverlay');
+                if (!overlay) return;
+                applyRole();
+                window._refreshChatUnread();
+                overlay.classList.add('open');
+            };
+            window.closeChatHub = function () {
+                var overlay = document.getElementById('chatHubOverlay');
+                if (overlay) overlay.classList.remove('open');
+            };
+            window._chatHubGo = function (which) {
+                if (which === 'kons') window.openKonseling();
+                else window.openGlobalChat();
             };
 
             /* Dipanggil saat role akun berubah di tengah sesi (mis. baru membeli VIP) */
