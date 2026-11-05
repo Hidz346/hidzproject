@@ -20,6 +20,8 @@ var ADMIN_UID       = 'admin_hidz_protected';
 var ADMIN_NAME      = 'Hidz';
 var MAX_TEXT_LENGTH = 500;
 var COOLDOWN_MS     = 1500;
+var ID_PAST_MS      = 30000;   // kunci pesan dari browser boleh sampai 30 detik lebih lama dari jam server
+var ID_FUTURE_MS    = 10000;   // ...dan sampai 10 detik lebih cepat
 var KEEP_MESSAGES   = 300;
 var PRUNE_CHANCE    = 0.05;
 
@@ -72,6 +74,16 @@ function messageId(now) {
     return String(now).padStart(13, '0') + '-' + Math.random().toString(36).slice(2, 8).padEnd(6, '0');
 }
 
+/* Browser membuat kunci pesan sendiri supaya pesan bisa langsung tampil di layar pengirim dan
+   dicocokkan dengan salinannya dari Firebase. Dipakai hanya kalau bentuknya benar dan waktunya
+   wajar; kalau tidak, server membuat kunci sendiri dan browser mengikuti kunci dari server. */
+function clientId(hint, now) {
+    if (typeof hint !== 'string' || !/^[0-9]{13}-[a-z0-9]{6}$/.test(hint)) return null;
+    var ts = parseInt(hint.slice(0, 13), 10);
+    if (ts < now - ID_PAST_MS || ts > now + ID_FUTURE_MS) return null;
+    return { id: hint, ts: ts };
+}
+
 /* Simpan hanya KEEP_MESSAGES pesan terbaru supaya database tidak menumpuk. Dijalankan
    sesekali saja (bukan di setiap kirim) dan tidak boleh menggagalkan pengiriman. */
 async function pruneOldMessages() {
@@ -109,16 +121,25 @@ async function sendMessage(auth, req, res) {
     }
 
     var now = Date.now();
-    var last = await db.fetchPath(COOLDOWN_PATH + '/' + auth.uid);
+    var pick = clientId((req.body || {}).id, now);
+    var checks = await Promise.all([
+        db.fetchPath(COOLDOWN_PATH + '/' + auth.uid),
+        pick ? db.fetchPath(MESSAGES_PATH + '/' + pick.id) : null
+    ]);
+    var last = checks[0];
     if (typeof last === 'number' && now - last < COOLDOWN_MS) {
         res.status(200).json({ ok: false, reason: 'slow_down', retryAfterMs: COOLDOWN_MS - (now - last) });
         return;
     }
-    await db.setPath(COOLDOWN_PATH + '/' + auth.uid, now);
 
-    var id = messageId(now);
-    var saved = await db.setPath(MESSAGES_PATH + '/' + id, { uid: auth.uid, name: auth.name, role: auth.role, text: text, ts: now });
-    if (!saved) {
+    /* Kunci dari browser tidak boleh menimpa pesan yang sudah ada */
+    var id = (pick && !checks[1]) ? pick.id : messageId(now);
+    var ts = (pick && !checks[1]) ? pick.ts : now;
+    var written = await Promise.all([
+        db.setPath(COOLDOWN_PATH + '/' + auth.uid, now),
+        db.setPath(MESSAGES_PATH + '/' + id, { uid: auth.uid, name: auth.name, role: auth.role, text: text, ts: ts })
+    ]);
+    if (!written[1]) {
         res.status(200).json({ ok: false, reason: 'db_error' });
         return;
     }
@@ -127,7 +148,9 @@ async function sendMessage(auth, req, res) {
     res.status(200).json({ ok: true, id: id });
 }
 
-/* Pengirim boleh menghapus pesannya sendiri; ADMIN boleh menghapus pesan siapa pun. */
+/* Pengirim boleh menghapus pesannya sendiri; ADMIN boleh menghapus pesan siapa pun. Pesan tidak dibuang,
+   isinya dikosongkan dan ditandai delAll supaya semua layar menampilkan "Pesan ini telah dihapus"
+   (sama seperti "Hapus untuk semua" di Konseling). */
 async function deleteMessage(auth, req, res) {
     var id = (req.body || {}).messageId;
     if (typeof id !== 'string' || !/^[0-9]{13}-[a-z0-9]{6}$/.test(id)) {
@@ -145,7 +168,11 @@ async function deleteMessage(auth, req, res) {
         return;
     }
 
-    var removed = await db.deletePath(MESSAGES_PATH + '/' + id);
+    if (msg.delAll === true) {
+        res.status(200).json({ ok: true, already: true });
+        return;
+    }
+    var removed = await db.setPath(MESSAGES_PATH + '/' + id, { uid: msg.uid, name: msg.name, role: msg.role, ts: msg.ts, text: '', delAll: true });
     res.status(200).json(removed ? { ok: true } : { ok: false, reason: 'db_error' });
 }
 

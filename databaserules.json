@@ -94,13 +94,13 @@
         ".read": "auth != null && auth.token.firebase.sign_in_provider === \"custom\"",
         ".write": "auth != null && auth.token.admin === true",
         "$messageId": {
-          ".validate": "newData.hasChildren([\"uid\",\"name\",\"role\",\"text\",\"ts\"]) && newData.child(\"text\").isString() && newData.child(\"text\").val().length <= 500 && newData.child(\"ts\").isNumber()"
+          ".validate": "newData.hasChildren([\"uid\",\"name\",\"role\",\"text\",\"ts\"]) && newData.child(\"text\").isString() && newData.child(\"text\").val().length <= 500 && newData.child(\"ts\").isNumber() && (!newData.hasChild(\"delAll\") || newData.child(\"delAll\").isBoolean())"
         }
       }
     },
     "hidz_user_photos": {
       "$userId": {
-        ".read": "auth != null && (auth.uid === $userId || $userId === \"admin_hidz_protected\" || auth.token.admin === true)",
+        ".read": "auth != null && (auth.uid === $userId || $userId === \"admin_hidz_protected\" || auth.token.admin === true || auth.token.firebase.sign_in_provider === \"custom\")",
         ".write": "auth != null && (auth.uid === $userId || auth.token.admin === true)",
         ".validate": "newData.isString() || !newData.exists()"
       }

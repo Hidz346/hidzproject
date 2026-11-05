@@ -2772,8 +2772,8 @@
             .gc-row.them .gc-bubble { background: var(--surface); color: var(--text); }
             .gc-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
             .gc-time { font-size: 10px; font-weight: 700; color: var(--text-secondary); }
-            .gc-del { background: none; border: none; color: var(--text-secondary); font-size: 10.5px; cursor: pointer; padding: 2px 4px; opacity: 0.7; }
-            .gc-del.confirm { color: #ef4444; font-weight: 800; opacity: 1; }
+            .gc-bubble.deleted { opacity: 0.6; font-style: italic; font-weight: 600; box-shadow: none; border-style: dashed; }
+            .gc-row.me .gc-bubble.deleted { background: var(--surface); color: var(--text-secondary); }
             .gc-new-chip {
                 display: none; align-items: center; gap: 6px;
                 position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
@@ -5529,6 +5529,11 @@
                     <button type="button" class="kons-send-btn" id="gcSendBtn" title="Kirim" onclick="window._gcSend()">
                         <i class="fas fa-paper-plane" id="gcSendIco"></i>
                     </button>
+                </div>
+                <div class="kons-msg-menu" id="gcMsgMenu">
+                    <button type="button" onclick="window._gcDeleteForMe()"><i class="fas fa-trash"></i> Hapus untuk saya</button>
+                    <button type="button" id="gcDeleteAllBtn" onclick="window._gcDeleteForEveryone()"><i class="fas fa-trash-can"></i> Hapus untuk semua</button>
+                    <button type="button" onclick="window._gcCloseMenu()">Batal</button>
                 </div>
             </div>
 
@@ -9706,7 +9711,11 @@
 
             var GC_REF        = 'hidz_global_chat/messages';
             var GC_LIMIT      = 100;             // jumlah pesan terbaru yang dimuat
-            var GC_MIN_GAP_MS = 2000;            // jeda minimal antar kirim dari satu perangkat
+            var GC_MIN_GAP_MS = 1700;            // jeda minimal antar permintaan kirim (server membatasi 1,5 detik)
+            var GC_QUEUE_MAX  = 3;               // pesan yang boleh antre menunggu giliran kirim
+            var GC_MAX_TEXT   = 500;
+            var HIDE_PREFIX   = 'hidz_gc_hide_'; // daftar "hapus untuk saya", per akun di perangkat ini
+            var HIDE_MAX      = 400;
             var GC_GROUP_MS   = 5 * 60 * 1000;   // pesan beruntun dari orang yang sama dirapatkan
 
             var _open        = false;
@@ -9715,12 +9724,16 @@
             var _openedAt    = 0;
             var _loaded      = false;
             var _failed      = false;
-            var _sending     = false;
-            var _lastSendAt  = 0;
             var _unseen      = 0;        // pesan baru dari orang lain saat layar tidak di paling bawah
             var _renderQueued = false;
-            var _delKey      = null;     // pesan yang sedang menunggu konfirmasi hapus
-            var _delTimer    = null;
+            var _forceBottom = false;    // setelah kirim pesan, layar selalu turun ke paling bawah
+            var _srvOffset   = 0;        // selisih jam perangkat dengan jam server Firebase
+            var _outbox      = [];       // pesan yang menunggu giliran dikirim ke server
+            var _outboxBusy  = false;
+            var _lastReqAt   = 0;
+            var _items       = {};       // key -> pesan yang belum dikonfirmasi server
+            var _hideMe      = {};       // key -> "hapus untuk saya"
+            var _menuKey     = null;     // pesan yang menu hapusnya sedang terbuka
 
             function getGcSession() {
                 try { return JSON.parse(localStorage.getItem('hidz_session') || '{}'); }
@@ -9791,21 +9804,28 @@
                 requestAnimationFrame(function () { _renderQueued = false; render(); });
             }
 
-            function messageHtml(m, k, prev, me, isAdmin) {
+            /* Foto profil pengirim, sama seperti di Konseling (logo default kalau belum punya foto) */
+            function avatarHtml(uid) {
+                if (typeof window._hidzWatchPhoto === 'function') window._hidzWatchPhoto(uid);
+                var url = (typeof window._hidzPhotoUrl === 'function') ? window._hidzPhotoUrl(uid) : '';
+                return url ? '<img class="kons-sender-avatar" src="' + escGc(url) + '" alt="">' : '';
+            }
+
+            function messageHtml(m, k, prev, me) {
                 var lead = !prev || prev.uid !== m.uid || (m.ts - prev.ts) > GC_GROUP_MS;
                 var mine = (m.uid === me);
                 var role = (m.role === 'vip' || m.role === 'admin') ? m.role : '';
                 var html = '<div class="gc-row ' + (mine ? 'me' : 'them') + (lead ? ' lead' : '') + '"><div class="gc-wrap">';
-                if (lead && !mine) {
-                    html += '<div class="gc-sender">' + escGc(m.name || 'User') +
+                if (lead) {
+                    html += '<div class="gc-sender">' + avatarHtml(m.uid) + escGc(m.name || 'User') +
                         (role ? '<span class="gc-role ' + role + '">' + role.toUpperCase() + '</span>' : '') + '</div>';
                 }
-                html += '<div class="gc-bubble">' + escGc(m.text) + '</div>' +
-                    '<div class="gc-meta"><span class="gc-time">' + fmtGcTime(m.ts) + '</span>';
-                if (mine || isAdmin) {
-                    html += '<button type="button" class="gc-del" data-key="' + escGc(k) + '" title="Hapus pesan"><i class="fas fa-trash"></i></button>';
-                }
-                return html + '</div></div></div>';
+                html += (m.delAll === true)
+                    ? '<div class="gc-bubble deleted"><i class="fas fa-ban" style="margin-right:5px;"></i>Pesan ini telah dihapus</div>'
+                    : '<div class="gc-bubble">' + escGc(m.text) + '</div>';
+                return html + '<div class="gc-meta"><span class="gc-time">' + fmtGcTime(m.ts) + '</span>' +
+                    '<button type="button" class="kons-bubble-more" title="Opsi" data-key="' + escGc(k) + '"><i class="fas fa-ellipsis"></i></button>' +
+                    '</div></div></div>';
             }
 
             function render() {
@@ -9814,7 +9834,7 @@
                 if (_failed) { box.innerHTML = stateHtml('fa-triangle-exclamation', 'Chat global belum bisa dimuat.<br>Periksa koneksi lalu buka ulang.'); return; }
                 if (!_loaded) { box.innerHTML = stateHtml('fa-spinner fa-spin', 'Memuat pesan...'); return; }
 
-                var keys = Object.keys(_msgs).sort();
+                var keys = Object.keys(_msgs).sort().filter(function (k) { return !_hideMe[k]; });
                 if (!keys.length) {
                     box.innerHTML = stateHtml('fa-comments', canSend()
                         ? 'Belum ada pesan.<br>Jadilah yang pertama menyapa!'
@@ -9824,19 +9844,19 @@
 
                 var atBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 80;
                 var wasEmpty = !box.querySelector('.gc-row');
-                var me = myUid(), isAdmin = (myRole() === 'admin');
+                var me = myUid();
                 var html = '', prev = null, prevDay = '';
                 keys.forEach(function (k) {
                     var m = _msgs[k];
                     var day = gcDayLabel(m.ts);
                     if (day !== prevDay) { html += '<div class="kons-day-sep">' + day + '</div>'; prevDay = day; prev = null; }
-                    html += messageHtml(m, k, prev, me, isAdmin);
+                    html += messageHtml(m, k, prev, me);
                     prev = m;
                 });
                 box.innerHTML = html;
-                _delKey = null;
 
-                if (atBottom || wasEmpty) { box.scrollTop = box.scrollHeight; _unseen = 0; }
+                if (atBottom || wasEmpty || _forceBottom) { box.scrollTop = box.scrollHeight; _unseen = 0; }
+                _forceBottom = false;
                 updateChip();
             }
 
@@ -9875,11 +9895,18 @@
             function onAdded(snap) {
                 var m = snap.val();
                 if (!m || typeof m.text !== 'string' || typeof m.ts !== 'number') return;
+                if (!_msgs[snap.key] && m.uid === myUid()) dropPendingTwin(m);
                 _msgs[snap.key] = m;
                 if (_loaded && m.uid !== myUid() && m.ts > _openedAt) {
                     var box = document.getElementById('gcMessages');
                     if (box && (box.scrollHeight - box.scrollTop - box.clientHeight) >= 80) { _unseen++; }
                 }
+                scheduleRender();
+            }
+            function onChanged(snap) {
+                var m = snap.val();
+                if (!m || typeof m.text !== 'string' || typeof m.ts !== 'number') return;
+                _msgs[snap.key] = m;
                 scheduleRender();
             }
             function onRemoved(snap) {
@@ -9898,6 +9925,7 @@
                     var q = firebase.database().ref(GC_REF).orderByKey().limitToLast(GC_LIMIT);
                     _query = q;
                     q.on('child_added', onAdded, onFail);
+                    q.on('child_changed', onChanged, onFail);
                     q.on('child_removed', onRemoved, onFail);
                     q.once('value', function () { _loaded = true; _failed = false; scheduleRender(); }, onFail);
                 });
@@ -9907,7 +9935,10 @@
                 _query = null;
             }
 
-            /* ---------- kirim & hapus (lewat API, role dicek ulang di server) ---------- */
+            /* ---------- kirim & hapus ----------
+               Pesan langsung tampil di layar begitu dikirim, tanpa menunggu server (seperti Konseling).
+               Permintaan ke server berjalan di belakang layar; kalau gagal (koneksi putus, sesi tidak valid,
+               dst) pesannya ditarik lagi dan muncul pemberitahuan. Role tetap dicek ulang di server. */
             function postChat(path, payload) {
                 var user = null;
                 try { user = firebase.auth().currentUser; } catch (e) {}
@@ -9921,68 +9952,204 @@
                 });
             }
 
-            function setSending(on) {
-                _sending = on;
-                var btn = document.getElementById('gcSendBtn');
-                if (btn) btn.disabled = on;
+            function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+            function copyMsg(m, extra) {
+                var out = {};
+                Object.keys(m).forEach(function (k) { if (k !== '_pending') out[k] = m[k]; });
+                if (extra) Object.keys(extra).forEach(function (k) { out[k] = extra[k]; });
+                return out;
+            }
+            var INVISIBLE_CHARS = new RegExp('[\\u0000-\\u001f\\u007f\\u200b-\\u200f\\u2028\\u2029\\ufeff]', 'g');
+            function cleanText(raw) {
+                return String(raw || '').replace(INVISIBLE_CHARS, ' ').replace(/\s+/g, ' ').trim();
+            }
+            /* Kunci pesan berurutan waktu, format yang sama dengan yang dibuat server */
+            function newKey(ts) {
+                return String(ts).padStart(13, '0') + '-' + Math.random().toString(36).slice(2, 8).padEnd(6, '0');
+            }
+
+            /* Kalau server memberi kunci lain dan pesan yang sama sudah datang lewat Firebase, buang salinan lokalnya */
+            function dropPendingTwin(m) {
+                Object.keys(_items).some(function (k) {
+                    var cur = _msgs[k];
+                    if (_items[k].msg.text !== m.text || !cur || !cur._pending) return false;
+                    delete _msgs[k];
+                    return true;
+                });
             }
 
             window._gcSend = function () {
                 if (!canSend()) { showNotice(); return; }
                 var input = document.getElementById('gcInput');
-                var text = input ? input.value.trim() : '';
-                if (!text || _sending) return;
-                if (Date.now() - _lastSendAt < GC_MIN_GAP_MS) { showHzToast('Tunggu sebentar sebelum mengirim lagi'); return; }
+                var text = cleanText(input ? input.value : '');
+                if (!text) return;
+                if (text.length > GC_MAX_TEXT) { showHzToast('Pesan maksimal ' + GC_MAX_TEXT + ' karakter'); return; }
+                if (_outbox.length >= GC_QUEUE_MAX) { showHzToast('Tunggu sebentar sebelum mengirim lagi'); return; }
 
-                setSending(true);
-                postChat('/api/chat/send', { chatText: text }).then(function (res) {
-                    if (res && res.ok) {
-                        _lastSendAt = Date.now();
-                        if (input && input.value.trim() === text) input.value = '';
-                        return;
-                    }
-                    var reason = res && res.reason;
-                    if (reason === 'vip_required') { showNotice(); return; }
-                    if (reason === 'expired' || reason === 'not_found' || reason === 'auth_required') { showHzToast('Sesi tidak valid, silakan login ulang'); return; }
-                    if (reason === 'slow_down') { showHzToast('Tunggu sebentar sebelum mengirim lagi'); return; }
-                    showHzToast((res && res.message) || 'Gagal mengirim pesan, coba lagi');
-                }).catch(function (err) {
-                    console.error('[ChatGlobal] gagal kirim', err);
-                    showHzToast('Gagal terhubung ke server, coba lagi');
-                }).then(function () { setSending(false); });
+                var ts = Date.now() + _srvOffset;
+                var role = myRole();
+                var item = {
+                    key: newKey(ts), text: text, state: 'queued', retried: false, deleteAfter: false,
+                    msg: { uid: myUid(), name: role === 'admin' ? 'Hidz' : (getGcSession().username || 'Kamu'), role: role, text: text, ts: ts }
+                };
+                _items[item.key] = item;
+                _msgs[item.key] = copyMsg(item.msg, { _pending: true });
+                if (input) input.value = '';
+                _forceBottom = true;
+                scheduleRender();
+                _outbox.push(item);
+                pumpOutbox();
             };
 
-            function deleteMessage(key) {
-                postChat('/api/chat/delete', { messageId: key }).then(function (res) {
-                    if (res && res.ok) { delete _msgs[key]; scheduleRender(); return; }
-                    showHzToast((res && res.message) || 'Gagal menghapus pesan');
+            /* Pesan dikirim satu per satu dengan jeda minimal, supaya tidak ditolak batas kecepatan server */
+            function pumpOutbox() {
+                if (_outboxBusy) return;
+                var item = _outbox.shift();
+                if (!item) return;
+                _outboxBusy = true;
+                wait(Math.max(0, GC_MIN_GAP_MS - (Date.now() - _lastReqAt))).then(function () {
+                    item.state = 'sending';
+                    _lastReqAt = Date.now();
+                    return dispatch(item);
+                }).then(function () { _outboxBusy = false; pumpOutbox(); });
+            }
+
+            function dispatch(item) {
+                return postChat('/api/chat/send', { chatText: item.text, id: item.key }).then(function (res) {
+                    if (res && res.ok) { settle(item, res.id); return; }
+                    if (res && res.reason === 'slow_down' && !item.retried) {
+                        item.retried = true;
+                        return wait((res.retryAfterMs || 1500) + 80).then(function () { _lastReqAt = Date.now(); return dispatch(item); });
+                    }
+                    fail(item, res);
                 }).catch(function (err) {
-                    console.error('[ChatGlobal] gagal hapus', err);
-                    showHzToast('Gagal terhubung ke server, coba lagi');
+                    console.error('[ChatGlobal] gagal kirim', err);
+                    fail(item, null);
                 });
             }
 
-            /* Hapus dua langkah: ketuk sekali -> "Hapus?", ketuk lagi dalam 3 detik -> terhapus */
-            function onMessagesClick(e) {
-                var btn = e.target.closest ? e.target.closest('.gc-del') : null;
-                if (!btn) return;
-                var key = btn.getAttribute('data-key');
-                if (_delKey === key) {
-                    clearTimeout(_delTimer);
-                    _delKey = null;
-                    deleteMessage(key);
+            /* Server menerima pesan: tandai terkirim (dan pindahkan ke kunci dari server kalau berbeda) */
+            function settle(item, realId) {
+                delete _items[item.key];
+                var finalKey = item.key;
+                var cur = _msgs[item.key];
+                if (realId && realId !== item.key) {
+                    finalKey = realId;
+                    delete _msgs[item.key];
+                    if (!_msgs[realId]) _msgs[realId] = copyMsg(cur || item.msg);
+                } else if (cur) {
+                    _msgs[item.key] = copyMsg(cur);
+                }
+                scheduleRender();
+                if (item.deleteAfter) callDelete(finalKey, copyMsg(item.msg));
+            }
+
+            /* Server menolak atau tidak terjangkau: tarik pesannya, kembalikan teks ke kolom ketik */
+            function fail(item, res) {
+                delete _items[item.key];
+                var cur = _msgs[item.key];
+                if (cur && cur._pending) delete _msgs[item.key];
+                scheduleRender();
+
+                var input = document.getElementById('gcInput');
+                if (input && !input.value && !item.deleteAfter) input.value = item.text;
+
+                var reason = res && res.reason;
+                if (reason === 'vip_required') { showNotice(); return; }
+                if (reason === 'expired' || reason === 'not_found' || reason === 'auth_required') { showHzToast('Sesi tidak valid, silakan login ulang'); return; }
+                if (reason === 'slow_down') { showHzToast('Tunggu sebentar sebelum mengirim lagi'); return; }
+                if (!res) { showHzToast('Pesan gagal terkirim, periksa koneksi'); return; }
+                showHzToast(res.message || 'Gagal mengirim pesan, coba lagi');
+            }
+
+            /* ---------- hapus pesan (menu sama seperti Konseling) ---------- */
+            function canDeleteAll(m) { return !!m && m.delAll !== true && (m.uid === myUid() || myRole() === 'admin'); }
+
+            window._gcOpenMenu = function (key) {
+                var m = _msgs[key];
+                if (!m) return;
+                _menuKey = key;
+                var allBtn = document.getElementById('gcDeleteAllBtn');
+                if (allBtn) allBtn.style.display = canDeleteAll(m) ? 'flex' : 'none';
+                var menu = document.getElementById('gcMsgMenu');
+                if (menu) menu.classList.add('show');
+            };
+            window._gcCloseMenu = function () {
+                _menuKey = null;
+                var menu = document.getElementById('gcMsgMenu');
+                if (menu) menu.classList.remove('show');
+            };
+
+            function hideStoreKey() { return HIDE_PREFIX + myUid(); }
+            function loadHidden() {
+                _hideMe = {};
+                try {
+                    (JSON.parse(localStorage.getItem(hideStoreKey()) || '[]') || []).forEach(function (k) {
+                        if (typeof k === 'string') _hideMe[k] = true;
+                    });
+                } catch (e) {}
+            }
+            function saveHidden() {
+                var keys = Object.keys(_hideMe).sort();
+                if (keys.length > HIDE_MAX) {
+                    keys.slice(0, keys.length - HIDE_MAX).forEach(function (k) { delete _hideMe[k]; });
+                    keys = keys.slice(-HIDE_MAX);
+                }
+                try { localStorage.setItem(hideStoreKey(), JSON.stringify(keys)); } catch (e) {}
+            }
+
+            /* Hanya hilang dari layar akun ini (di perangkat ini) */
+            window._gcDeleteForMe = function () {
+                var key = _menuKey;
+                window._gcCloseMenu();
+                if (!key) return;
+                _hideMe[key] = true;
+                saveHidden();
+                scheduleRender();
+            };
+
+            /* Hilang untuk semua orang: layar berubah seketika, server menyusul di belakang */
+            window._gcDeleteForEveryone = function () {
+                var key = _menuKey;
+                window._gcCloseMenu();
+                var m = key && _msgs[key];
+                if (!canDeleteAll(m)) return;
+
+                var item = _items[key];
+                if (item && item.state === 'queued') {          // belum sempat dikirim: cukup dibatalkan
+                    _outbox = _outbox.filter(function (x) { return x !== item; });
+                    delete _items[key];
+                    delete _msgs[key];
+                    scheduleRender();
                     return;
                 }
-                var prevBtn = document.querySelector('.gc-del.confirm');
-                if (prevBtn) { prevBtn.classList.remove('confirm'); prevBtn.innerHTML = '<i class="fas fa-trash"></i>'; }
-                _delKey = key;
-                btn.classList.add('confirm');
-                btn.innerHTML = '<i class="fas fa-trash"></i> Hapus?';
-                clearTimeout(_delTimer);
-                _delTimer = setTimeout(function () {
-                    _delKey = null;
-                    if (btn.isConnected) { btn.classList.remove('confirm'); btn.innerHTML = '<i class="fas fa-trash"></i>'; }
-                }, 3000);
+                var backup = copyMsg(m);
+                var tomb = copyMsg(m, { text: '', delAll: true });
+                if (item) tomb._pending = true;
+                _msgs[key] = tomb;
+                scheduleRender();
+                if (item) { item.deleteAfter = true; return; }  // sedang dikirim: hapus setelah server menerimanya
+                callDelete(key, backup);
+            };
+
+            function callDelete(key, backup) {
+                function restore(message) {
+                    _msgs[key] = backup;
+                    scheduleRender();
+                    showHzToast(message || 'Gagal menghapus pesan, coba lagi');
+                }
+                postChat('/api/chat/delete', { messageId: key }).then(function (res) {
+                    if (res && res.ok) return;
+                    restore(res && res.reason === 'forbidden' ? res.message : '');
+                }).catch(function (err) {
+                    console.error('[ChatGlobal] gagal hapus', err);
+                    restore('Pesan gagal dihapus, periksa koneksi');
+                });
+            }
+
+            function onMessagesClick(e) {
+                var btn = e.target.closest ? e.target.closest('.kons-bubble-more') : null;
+                if (btn) window._gcOpenMenu(btn.getAttribute('data-key'));
             }
 
             function onMessagesScroll() {
@@ -10000,6 +10167,8 @@
                 _openedAt = Date.now();
                 markRead();
                 _msgs = {};
+                Object.keys(_items).forEach(function (k) { _msgs[k] = copyMsg(_items[k].msg, { _pending: true }); });
+                loadHidden();
                 _loaded = false;
                 _failed = false;
                 _unseen = 0;
@@ -10017,8 +10186,7 @@
                 _open = false;
                 detach();
                 hideNotice();
-                clearTimeout(_delTimer);
-                _delKey = null;
+                window._gcCloseMenu();
             };
 
             /* ---------- penanda pesan baru (titik merah) ----------
@@ -10061,10 +10229,14 @@
             }
             function onWatchAdded(snap) {
                 var m = snap.val();
-                if (!m || typeof m.ts !== 'number' || m.ts <= _seenTs || m.uid === myUid()) return;
+                if (!m || typeof m.ts !== 'number' || m.ts <= _seenTs || m.uid === myUid() || m.delAll === true) return;
                 if (_open) { advanceSeen(m.ts); return; }
                 _unreadKeys[snap.key] = m.ts;
                 setUnread();
+            }
+            function onWatchChanged(snap) {
+                var m = snap.val();
+                if (m && m.delAll === true) onWatchRemoved(snap);
             }
             function onWatchRemoved(snap) {
                 if (_unreadKeys[snap.key] === undefined) return;
@@ -10086,6 +10258,7 @@
                         .startAt(String(_seenTs).padStart(13, '0')).limitToLast(GC_LIMIT);
                     _watchQuery = q;
                     q.on('child_added', onWatchAdded, onWatchFail);
+                    q.on('child_changed', onWatchChanged, onWatchFail);
                     q.on('child_removed', onWatchRemoved, onWatchFail);
                 });
             }
@@ -10139,6 +10312,15 @@
 
             /* Dipanggil saat role akun berubah di tengah sesi (mis. baru membeli VIP) */
             window._gcApplyRole = applyRole;
+
+            /* Jam pesan memakai jam server Firebase, jadi urutan tetap benar walau jam perangkat meleset */
+            ensureFb(function () {
+                try {
+                    firebase.database().ref('.info/serverTimeOffset').on('value', function (snap) { _srvOffset = snap.val() || 0; });
+                } catch (e) {}
+            });
+            /* Foto profil yang baru berubah ikut diperbarui di jendela yang sedang terbuka */
+            window.addEventListener('hidz:photo-updated', function () { if (_open) scheduleRender(); });
 
             var box = document.getElementById('gcMessages');
             if (box) {
