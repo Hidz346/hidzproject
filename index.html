@@ -3203,6 +3203,81 @@
                 transition: transform 0.15s, box-shadow 0.15s;
             }
             .hzn-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--border); }
+            .hzn-actions { display: flex; gap: 10px; }
+            .hzn-actions .hzn-btn { flex: 1; width: auto; }
+            .hzn-btn.is-ghost  { background: var(--surface); color: var(--text); }
+            .hzn-btn.is-danger { background: #ef4444; }
+            .hzn-icon.is-danger { background: #ef4444; color: #fff; }
+
+            /* ---- Riwayat Notifikasi ---- */
+            .hzh-note {
+                font-size: 11.5px; font-weight: 600; line-height: 1.6;
+                color: var(--text-secondary); margin-bottom: 14px;
+            }
+            .hzh-item {
+                display: flex; align-items: flex-start; gap: 12px;
+                background: var(--surface);
+                border: 2.5px solid var(--border);
+                box-shadow: var(--shadow-sm);
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            .hzh-ic {
+                width: 38px; height: 38px; flex-shrink: 0;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 16px; color: #0a0a0a;
+                background: var(--y2k-cyan);
+                border: 2.5px solid var(--border);
+            }
+            .hzh-ic.reset_password { background: var(--y2k-accent); }
+            .hzh-ic.duration_added { background: var(--y2k-lime); }
+            .hzh-ic.role_upgraded  { background: #fbbf24; }
+            .hzh-ic.voucher_new    { background: #a78bfa; }
+            .hzh-main {
+                flex: 1; min-width: 0;
+                display: flex; flex-direction: column; gap: 4px;
+                text-align: left; background: none; border: none; padding: 0;
+                font-family: inherit; color: inherit; cursor: pointer;
+            }
+            .hzh-title { font-weight: 800; font-size: 13.5px; color: var(--text); word-break: break-word; }
+            .hzh-chip {
+                display: inline-block; font-size: 9px; font-weight: 900;
+                text-transform: uppercase; letter-spacing: 0.5px;
+                background: var(--chip-bg); border: 1.5px solid var(--border);
+                padding: 1px 6px; margin-left: 6px; vertical-align: middle;
+            }
+            .hzh-excerpt {
+                font-size: 12px; font-weight: 500; line-height: 1.5;
+                color: var(--text-secondary); word-break: break-word;
+                overflow: hidden; text-overflow: ellipsis;
+                display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            }
+            .hzh-meta { font-size: 10px; font-weight: 700; line-height: 1.6; color: var(--text-secondary); opacity: 0.75; }
+            .hzh-del {
+                width: 34px; height: 34px; flex-shrink: 0;
+                display: flex; align-items: center; justify-content: center;
+                background: var(--surface); color: #ef4444;
+                border: 2.5px solid var(--border);
+                font-size: 13px; cursor: pointer;
+            }
+            .hzh-del:active { transform: translate(2px, 2px); }
+            .hzh-more {
+                width: 100%; padding: 12px 8px;
+                background: var(--chip-bg); color: var(--text);
+                border: 2.5px solid var(--border);
+                box-shadow: var(--shadow-sm);
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 12px; font-weight: 900;
+                text-transform: uppercase; letter-spacing: 1px;
+                cursor: pointer;
+            }
+            .hzh-more:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--border); }
+            .hzh-empty {
+                text-align: center; padding: 40px 20px;
+                color: var(--text-secondary); font-size: 13px; font-weight: 600;
+            }
+            .hzh-empty i { display: block; font-size: 22px; margin-bottom: 10px; opacity: 0.35; }
+            #hzhClearAll:disabled { opacity: 0.35; pointer-events: none; }
 
             .hzn-ask {
                 position: fixed; left: 12px; right: 12px; z-index: 4900;
@@ -5235,7 +5310,24 @@
                 </div>
             </div>
 
-            
+
+            <!-- Riwayat Notifikasi: semua notifikasi yang pernah masuk, bisa dibuka ulang & dihapus -->
+            <div class="ann-overlay" id="hzhOverlay" role="dialog" aria-labelledby="hzhTitle">
+                <div class="ann-header">
+                    <button type="button" class="icon-btn" title="Kembali" aria-label="Kembali" onclick="window.closeNotifHistory()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <span class="ann-header-title" id="hzhTitle">Riwayat Notifikasi</span>
+                    <button type="button" class="icon-btn" id="hzhClearAll" title="Hapus semua" aria-label="Hapus semua riwayat notifikasi" disabled>
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div class="ann-body">
+                    <p class="hzh-note">Notifikasi yang pernah masuk, terbaru di atas. Ketuk untuk membukanya lagi. Setiap notifikasi terhapus sendiri saat masa berlakunya habis.</p>
+                    <div id="hzhList"></div>
+                </div>
+            </div>
+
             <!-- Halaman PRICING: Upgrade ke VIP Otomatis (QRIS) -->
             <div class="ann-overlay" id="pricingOverlay">
                 <div class="ann-header">
@@ -6368,6 +6460,9 @@
                     '" id="darkIcon" style="font-size:22px; color:' +
                     toggleColor +
                     '; transition: 0.3s;"></i></div>' +
+                    '<div class="setting-item" onclick="window.openNotifHistory()">' +
+                    '<span><i class="fas fa-bell" style="margin-right:10px; color:var(--primary);"></i> Riwayat Notifikasi</span>' +
+                    '<i class="fas fa-chevron-right" style="color:var(--text-secondary); font-size:12px;"></i></div>' +
                     '<div class="section-title">Tema Warna</div>' +
                     '<div class="theme-palette">' +
                     '<div class="color-dot" style="background: linear-gradient(135deg, #6a3fc8, #3366d9);" onclick="changeTheme(\'#6a3fc8\', \'#3366d9\')"></div>' +
@@ -6765,6 +6860,8 @@
                     '<div class="hamburger-section-title" style="margin-top:8px;">Lainnya</div>';
                 html +=
                     '<button class="hamburger-item" onclick="closeHamburger(); switchPage(\'account\');"><i class="fas fa-user"></i><span>Profile</span></button>';
+                html +=
+                    '<button class="hamburger-item" onclick="closeHamburger(); window.openNotifHistory();"><i class="fas fa-bell"></i><span>Riwayat Notifikasi</span></button>';
                 if (_hmRole === 'vip') {
                     html +=
                         '<button class="hamburger-item" onclick="closeHamburger(); window.openVipPanel();" style="color:#fbbf24;"><i class="fas fa-crown" style="color:#fbbf24;"></i><span>Panel VIP</span></button>';
@@ -6888,6 +6985,17 @@
                 <button type="button" class="hzn-btn" id="hznOk">Oke</button>
             </div>
         </div>
+        <div class="hzn-overlay" id="hzcOverlay" role="alertdialog" aria-labelledby="hzcTitle" aria-describedby="hzcBody">
+            <div class="hzn-card">
+                <div class="hzn-icon is-danger"><i class="fas fa-trash-alt"></i></div>
+                <div class="hzn-title" id="hzcTitle">Hapus Semua Riwayat?</div>
+                <div class="hzn-body" id="hzcBody"></div>
+                <div class="hzn-actions">
+                    <button type="button" class="hzn-btn is-ghost" id="hzcNo">Batal</button>
+                    <button type="button" class="hzn-btn is-danger" id="hzcYes">Hapus</button>
+                </div>
+            </div>
+        </div>
         <div class="hzn-ask" id="hznAsk">
             <i class="fas fa-bell hzn-ask-icon"></i>
             <div class="hzn-ask-txt">Aktifkan notifikasi supaya dapat kabar project baru, maintenance, durasi ditambah, atau password direset — walau tab ini sedang ditutup.</div>
@@ -6905,8 +7013,10 @@
             var SNOOZE_SOFT  = 3 * 86400000;     /* "Nanti" — ditawarkan lagi 3 hari kemudian */
             var SNOOZE_HARD  = 30 * 86400000;    /* izin ditolak — jangan menawarkan lagi dalam waktu dekat */
             var ASK_DELAY_MS = 6000;
-            var INBOX_MAX_AGE_MS = 7 * 86400000; /* pesan yang tak pernah terbaca selama 7 hari dibuang diam-diam */
-            var INBOX_MAX_SHOWS  = 3;            /* satu pesan tampil paling banyak 3 kali (sekali per membuka halaman) */
+            var INBOX_LEGACY_TTL_MS = 7 * 86400000; /* pesan lama tanpa expiresAt: berlaku 7 hari sejak dibuat */
+            var INBOX_MAX_SHOWS  = 3;            /* satu pesan tampil sebagai kartu paling banyak 3 kali (sekali per membuka halaman) */
+            var HIST_PREVIEW     = 3;            /* riwayat menampilkan 3 terbaru dulu, sisanya lewat "Lihat Lebih Detail" */
+            var SWEEP_EVERY_MS   = 30000;        /* seberapa sering pesan kedaluwarsa dicek dan dihapus */
 
             var PUSH_SUPPORTED = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
             var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', project_new: 'fa-rocket', voucher_new: 'fa-ticket-alt' };
@@ -6923,15 +7033,54 @@
                 toast._t = setTimeout(function () { el.classList.remove('show'); }, 2400);
             }
 
-            /* ===== PESAN DALAM HALAMAN ===== */
-            var inboxUser = null;
-            var inboxRef  = null;
-            var pending   = [];
-            var seen      = {};
-            var showing   = false;
-            var showTimer = null;
-            var currentId = null;
+            /* ===== PESAN DALAM HALAMAN & RIWAYAT NOTIFIKASI =====
+               Antrean hidz_notifications/{uid} sekaligus jadi riwayat: pesan yang sudah dibaca tidak
+               dihapus supaya bisa dilihat lagi dari "Riwayat Notifikasi". Pesan baru hilang kalau
+               penerimanya menghapusnya, admin menghapus riwayatnya, atau masa berlakunya (expiresAt,
+               diisi server) habis. Field `shown` mencatat berapa kali kartunya tampil: kartu muncul
+               lagi selama shown < 3, dan "Oke" langsung mengisinya 3. */
+            var inboxUser  = null;
+            var inboxRef   = null;
+            var items      = {};     /* id -> isi pesan: seluruh isi antrean = seluruh isi riwayat */
+            var pending    = [];
+            var seen       = {};
+            var showing    = false;  /* kartu sedang tampil sebagai pesan baru */
+            var viewing    = false;  /* kartu dibuka ulang dari riwayat */
+            var showTimer  = null;
+            var sweepTimer = null;
+            var currentId  = null;
+            var histOpen   = false;
+            var histMore   = false;  /* daftar riwayat dibentangkan penuh (LIHAT LEBIH DETAIL) */
             var onDurationChange = null;
+
+            var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+            function escHtml(v) {
+                return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+
+            /* "5 Nov 2026, 22.18 WIB" — dihitung dari UTC+7 supaya sama di perangkat mana pun. */
+            function stamp(ms) {
+                var d = new Date(Number(ms) + 7 * 3600000);
+                function two(n) { return n < 10 ? '0' + n : String(n); }
+                return d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear() +
+                    ', ' + two(d.getUTCHours()) + '.' + two(d.getUTCMinutes()) + ' WIB';
+            }
+
+            /* Kapan pesan ini berakhir (epoch ms); 0 = tanpa batas. Pesan lama yang ditulis sebelum
+               ada expiresAt dihitung 7 hari sejak dibuat, sama seperti sebelumnya. */
+            function endOf(note) {
+                var end = Number(note.expiresAt);
+                if (end > 0) return end;
+                var created = Number(note.createdAt);
+                return created > 0 ? created + INBOX_LEGACY_TTL_MS : 0;
+            }
+            function isExpired(note) {
+                var end = endOf(note);
+                return end > 0 && end <= Date.now();
+            }
 
             function closeSystemNotification(tag) {
                 if (!PUSH_SUPPORTED) return;
@@ -6943,40 +7092,54 @@
                 }).catch(function () {});
             }
 
-            /* Catat satu kali tampil di field `shown` milik pesan itu. Memakai
-               transaction supaya dua tab/perangkat yang membuka bersamaan
-               tidak saling menimpa hitungan. Pesan dihapus begitu mencapai
-               batas tampil — atau kalau hitungannya gagal ditulis, supaya
-               tidak pernah muncul lebih banyak dari yang dijanjikan. */
-            function recordShown(ref) {
-                ref.child('shown').transaction(function (count) {
-                    return (count || 0) + 1;
-                }, function (err, committed, snap) {
-                    if (err || !committed || snap.val() >= INBOX_MAX_SHOWS) {
-                        ref.remove().catch(function () {});
-                    }
+            function removeItem(id) {
+                if (!inboxRef) return;
+                try { inboxRef.child(id).remove().catch(function () {}); } catch (e) {}
+            }
+
+            /* Tandai sudah dibaca: kartunya tidak muncul lagi, tapi pesannya tetap ada di riwayat.
+               `localOnly` dipakai kalau tulisan ke database gagal — cukup berhenti menampilkannya di
+               sini supaya tidak pernah muncul lebih banyak dari yang dijanjikan. */
+            function markRead(id, localOnly) {
+                if (items[id]) items[id].shown = INBOX_MAX_SHOWS;
+                if (localOnly || !inboxRef) return;
+                try { inboxRef.child(id).child('shown').set(INBOX_MAX_SHOWS).catch(function () {}); } catch (e) {}
+            }
+
+            /* Catat satu kali tampil di field `shown` milik pesan itu. Memakai transaction supaya dua
+               tab/perangkat yang membuka bersamaan tidak saling menimpa hitungan. */
+            function recordShown(id) {
+                inboxRef.child(id).child('shown').transaction(function (count) {
+                    return Math.min(INBOX_MAX_SHOWS, (count || 0) + 1);
+                }, function (err, committed) {
+                    if (err || !committed) markRead(id, true);
                 }, false);
             }
 
+            function fillCard(note) {
+                var type = note.type || 'info';
+                byId('hznTitle').textContent = note.title || 'Hidz Project';
+                byId('hznBody').textContent  = note.body  || '';
+                byId('hznIcon').className    = 'hzn-icon ' + type;
+                byId('hznIconGlyph').className = 'fas ' + (NOTE_ICONS[type] || 'fa-bell');
+            }
+
             function showNext() {
-                if (showing || !pending.length) return;
+                if (showing || viewing || !pending.length) return;
                 /* Hanya saat tab terlihat — selama disembunyikan, pesan menunggu. */
                 if (document.visibilityState !== 'visible') return;
 
                 var item = pending.shift();
+                var type = item.note.type || 'info';
                 showing = true;
                 currentId = item.id;
 
-                var type = item.note.type || 'info';
-                byId('hznTitle').textContent = item.note.title || 'Hidz Project';
-                byId('hznBody').textContent  = item.note.body  || '';
-                byId('hznIcon').className    = 'hzn-icon ' + type;
-                byId('hznIconGlyph').className = 'fas ' + (NOTE_ICONS[type] || 'fa-bell');
-                byId('hznOk').textContent    = pending.length ? 'Lanjut (' + pending.length + ' lagi)' : 'Oke';
+                fillCard(item.note);
+                byId('hznOk').textContent = pending.length ? 'Lanjut (' + pending.length + ' lagi)' : 'Oke';
                 byId('hznOverlay').classList.add('show');
 
-                /* Hitung tampilan ini; setelah tampil 3 kali pesan dihapus dari antrean. */
-                try { recordShown(inboxRef.child(item.id)); } catch (e) {}
+                /* Hitung tampilan ini; setelah tampil 3 kali kartunya tidak muncul lagi. */
+                try { recordShown(item.id); } catch (e) {}
                 /* Notifikasi Chrome untuk pesan yang sama (kalau sempat muncul) tidak perlu lagi. */
                 closeSystemNotification(item.id);
 
@@ -6985,51 +7148,186 @@
                 if ((type === 'duration_added' || type === 'role_upgraded') && !item.note.shown && typeof onDurationChange === 'function') onDurationChange();
             }
 
+            /* Buang pesan yang masa berlakunya sudah habis. */
+            function sweepExpired() {
+                Object.keys(items).forEach(function (id) {
+                    if (isExpired(items[id])) removeItem(id);
+                });
+            }
+
             function startInbox(userId) {
                 if (inboxUser === userId) return;
                 if (inboxRef) { try { inboxRef.off(); } catch (e) {} }
 
                 inboxUser = userId;
+                items = {};
                 pending = [];
                 seen = {};
                 currentId = null;
+                histMore = false;
                 clearTimeout(showTimer);
+                clearInterval(sweepTimer);
+                renderHistory();
 
                 try {
                     inboxRef = firebase.database().ref('hidz_notifications/' + userId);
                     inboxRef.on('child_added', function (snap) {
                         var note = snap.val();
-                        if (!note || typeof note !== 'object' || seen[snap.key]) return;
-                        seen[snap.key] = true;
-                        if (note.createdAt && Date.now() - note.createdAt > INBOX_MAX_AGE_MS) {
-                            try { inboxRef.child(snap.key).remove().catch(function () {}); } catch (e) {}
-                            return;
+                        if (!note || typeof note !== 'object') return;
+                        if (isExpired(note)) { removeItem(snap.key); return; }
+
+                        items[snap.key] = note;
+                        if (!seen[snap.key] && (Number(note.shown) || 0) < INBOX_MAX_SHOWS) {
+                            seen[snap.key] = true;
+                            pending.push({ id: snap.key, note: note });
+                            pending.sort(function (a, b) { return (a.note.createdAt || 0) - (b.note.createdAt || 0); });
+                            /* Jeda singkat supaya pesan yang tiba bersamaan (mis. beberapa
+                               pesan menunggu sejak akun offline) terkumpul & terurut dulu. */
+                            clearTimeout(showTimer);
+                            showTimer = setTimeout(showNext, 250);
                         }
-                        pending.push({ id: snap.key, note: note });
-                        pending.sort(function (a, b) { return (a.note.createdAt || 0) - (b.note.createdAt || 0); });
-                        /* Jeda singkat supaya pesan yang tiba bersamaan (mis. beberapa
-                           pesan menunggu sejak akun offline) terkumpul & terurut dulu. */
-                        clearTimeout(showTimer);
-                        showTimer = setTimeout(showNext, 250);
+                        renderHistory();
                     }, function (err) {
                         /* Biasanya karena rules Firebase belum di-publish ulang. */
                         try { console.warn('[notif] antrean pesan tidak bisa dibaca:', err && err.code); } catch (e) {}
                     });
+                    inboxRef.on('child_changed', function (snap) {
+                        var note = snap.val();
+                        if (!note || typeof note !== 'object') return;
+                        items[snap.key] = note;
+                        renderHistory();
+                    });
+                    /* Dihapus pemiliknya, dihapus admin, atau kedaluwarsa: hilang dari riwayat saat itu juga,
+                       dan pesan yang belum sempat tampil sebagai kartu ikut batal. */
+                    inboxRef.on('child_removed', function (snap) {
+                        delete items[snap.key];
+                        pending = pending.filter(function (it) { return it.id !== snap.key; });
+                        renderHistory();
+                    });
+                    sweepTimer = setInterval(sweepExpired, SWEEP_EVERY_MS);
                 } catch (e) {}
             }
 
             byId('hznOk').addEventListener('click', function () {
-                /* "Oke" artinya pesannya sudah dibaca — hapus sekarang, tidak
-                   perlu menunggu hitungan tampil sampai 3. */
-                if (currentId && inboxRef) {
-                    try { inboxRef.child(currentId).remove().catch(function () {}); } catch (e) {}
-                }
-                currentId = null;
                 byId('hznOverlay').classList.remove('show');
+                if (viewing) { viewing = false; showNext(); return; }
+                /* "Oke" artinya pesannya sudah dibaca — kartunya tidak muncul lagi, tapi pesannya
+                   tetap ada di Riwayat Notifikasi sampai dihapus atau habis masa berlakunya. */
+                if (currentId) markRead(currentId);
+                currentId = null;
                 showing = false;
                 showNext();
             });
-            document.addEventListener('visibilitychange', showNext);
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') sweepExpired();
+                showNext();
+            });
+
+            /* ===== RIWAYAT NOTIFIKASI ===== */
+            function sortedItems() {
+                return Object.keys(items).map(function (id) { return { id: id, note: items[id] }; })
+                    .sort(function (a, b) { return (Number(b.note.createdAt) || 0) - (Number(a.note.createdAt) || 0); });
+            }
+
+            function renderHistory() {
+                if (!histOpen) return;
+                var list = byId('hzhList');
+                var all  = sortedItems();
+                byId('hzhClearAll').disabled = !all.length;
+
+                if (!all.length) {
+                    list.innerHTML = '<div class="hzh-empty"><i class="fas fa-bell-slash"></i>Belum ada notifikasi.</div>';
+                    return;
+                }
+
+                /* Tampil 3 terbaru dulu, sisanya lewat tombol. */
+                if (all.length <= HIST_PREVIEW) histMore = false;
+                var html = '';
+                (histMore ? all : all.slice(0, HIST_PREVIEW)).forEach(function (it) {
+                    var n    = it.note;
+                    var type = n.type || 'info';
+                    var unread = (Number(n.shown) || 0) < INBOX_MAX_SHOWS;
+                    var end  = endOf(n);
+                    html +=
+                        '<div class="hzh-item" data-id="' + escHtml(it.id) + '">' +
+                            '<div class="hzh-ic ' + escHtml(type) + '"><i class="fas ' + (NOTE_ICONS[type] || 'fa-bell') + '"></i></div>' +
+                            '<button type="button" class="hzh-main" data-act="view">' +
+                                '<span class="hzh-title">' + escHtml(n.title) + (unread ? '<span class="hzh-chip">Baru</span>' : '') + '</span>' +
+                                '<span class="hzh-excerpt">' + escHtml(n.body) + '</span>' +
+                                '<span class="hzh-meta">' + (n.createdAt ? 'Masuk ' + stamp(n.createdAt) : '') +
+                                    (end ? '<br>Berakhir ' + stamp(end) : '') + '</span>' +
+                            '</button>' +
+                            '<button type="button" class="hzh-del" data-act="del" title="Hapus" aria-label="Hapus notifikasi"><i class="fas fa-trash-alt"></i></button>' +
+                        '</div>';
+                });
+                if (all.length > HIST_PREVIEW) {
+                    html += '<button type="button" class="hzh-more" data-act="more">' +
+                        (histMore ? 'Sembunyikan ↑' : 'Lihat Lebih Detail (' + all.length + ') ↓') + '</button>';
+                }
+                list.innerHTML = html;
+            }
+
+            /* Buka ulang kartu sebuah notifikasi dari riwayat (tidak menghitung sebagai tampil baru). */
+            function viewNote(id) {
+                var note = items[id];
+                if (!note || showing || viewing) return;
+                viewing = true;
+                fillCard(note);
+                byId('hznOk').textContent = 'Tutup';
+                byId('hznOverlay').classList.add('show');
+            }
+
+            /* Hapus satu: hilang dari layar dulu, database menyusul. Kalau ditolak server, listener
+               memunculkannya lagi. */
+            function removeOne(id) {
+                delete items[id];
+                pending = pending.filter(function (it) { return it.id !== id; });
+                renderHistory();
+                removeItem(id);
+            }
+
+            function removeAll() {
+                var ids = Object.keys(items);
+                items = {};
+                pending = [];
+                renderHistory();
+                ids.forEach(removeItem);
+            }
+
+            byId('hzhList').addEventListener('click', function (e) {
+                var el = e.target.closest ? e.target.closest('[data-act]') : null;
+                if (!el) return;
+                var act = el.getAttribute('data-act');
+                if (act === 'more') { histMore = !histMore; renderHistory(); return; }
+                var row = el.closest('.hzh-item');
+                var id  = row && row.getAttribute('data-id');
+                if (!id) return;
+                if (act === 'view') viewNote(id);
+                else if (act === 'del') removeOne(id);
+            });
+
+            byId('hzhClearAll').addEventListener('click', function () {
+                var n = Object.keys(items).length;
+                if (!n) return;
+                byId('hzcBody').textContent = n + ' notifikasi di riwayat ini akan dihapus dan tidak bisa dibuka lagi.';
+                byId('hzcOverlay').classList.add('show');
+            });
+            byId('hzcNo').addEventListener('click', function () { byId('hzcOverlay').classList.remove('show'); });
+            byId('hzcYes').addEventListener('click', function () {
+                byId('hzcOverlay').classList.remove('show');
+                removeAll();
+            });
+
+            window.openNotifHistory = function () {
+                histOpen = true;
+                histMore = false;
+                byId('hzhOverlay').classList.add('open');
+                renderHistory();
+            };
+            window.closeNotifHistory = function () {
+                histOpen = false;
+                byId('hzhOverlay').classList.remove('open');
+            };
 
             /* ===== NOTIFIKASI CHROME (WEB PUSH) ===== */
             var publicKey = null;
