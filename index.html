@@ -2589,6 +2589,38 @@
                 color: var(--text); text-transform: uppercase; letter-spacing: 0.5px;
             }
             .ann-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 20px 16px 30px; }
+            .ann-header-end { width: 36px; height: 36px; }
+
+            /* Tab di halaman Pengumuman: Pengumuman | Notifikasi (riwayat) */
+            .ann-tabs {
+                display: flex; gap: 10px;
+                padding: 12px 16px;
+                border-bottom: 3px solid var(--border);
+                flex-shrink: 0;
+            }
+            .ann-tab {
+                flex: 1; min-width: 0;
+                display: flex; align-items: center; justify-content: center; gap: 8px;
+                padding: 10px 8px;
+                background: var(--surface); color: var(--text);
+                border: 2.5px solid var(--border);
+                box-shadow: var(--shadow-sm);
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 12px; font-weight: 900;
+                text-transform: uppercase; letter-spacing: 0.5px;
+                cursor: pointer;
+                transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+            }
+            .ann-tab:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--border); }
+            .ann-tab.is-active { background: var(--chip-bg); transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--border); }
+            .ann-tab-count {
+                min-width: 20px; padding: 0 5px;
+                background: var(--surface); color: var(--text);
+                border: 2px solid var(--border);
+                font-size: 10px; line-height: 16px; text-align: center;
+            }
+            .ann-tab-count.has-new { background: var(--y2k-accent); color: #0a0a0a; }
+            .ann-tab-count[hidden] { display: none; }
 
             /* ---- Konseling: chat langsung dengan admin ---- */
             .kons-overlay { z-index: 260; }
@@ -3181,6 +3213,7 @@
             .hzn-icon.duration_added  { background: var(--y2k-lime); }
             .hzn-icon.role_upgraded   { background: #fbbf24; }
             .hzn-icon.voucher_new     { background: #a78bfa; }
+            .hzn-icon.maintenance     { background: #fb923c; }
             .hzn-title {
                 font-family: 'Orbitron', sans-serif;
                 font-size: 14px; font-weight: 900;
@@ -3234,6 +3267,7 @@
             .hzh-ic.duration_added { background: var(--y2k-lime); }
             .hzh-ic.role_upgraded  { background: #fbbf24; }
             .hzh-ic.voucher_new    { background: #a78bfa; }
+            .hzh-ic.maintenance    { background: #fb923c; }
             .hzh-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
             .hzh-main {
                 width: 100%;
@@ -3289,6 +3323,7 @@
             }
             .hzh-empty i { display: block; font-size: 22px; margin-bottom: 10px; opacity: 0.35; }
             #hzhClearAll:disabled { opacity: 0.35; pointer-events: none; }
+            #hzhClearAll[hidden] { display: none; }
 
             .hzn-ask {
                 position: fixed; left: 12px; right: 12px; z-index: 4900;
@@ -5297,10 +5332,22 @@
                     <button class="icon-btn" id="btnAnnBack" title="Kembali" onclick="window.closeAnnounceSheet()">
                         <i class="fas fa-arrow-left"></i>
                     </button>
-                    <span class="ann-header-title">Pengumuman</span>
-                    <div style="width: 36px"></div>
+                    <span class="ann-header-title" id="annTitle">Pengumuman</span>
+                    <div class="ann-header-end">
+                        <button type="button" class="icon-btn" id="hzhClearAll" title="Hapus semua" aria-label="Hapus semua riwayat notifikasi" hidden disabled>
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="ann-tabs" role="tablist">
+                    <button type="button" class="ann-tab is-active" id="annTabInfo" role="tab" aria-selected="true" onclick="window._annSetTab('info')">Pengumuman</button>
+                    <button type="button" class="ann-tab" id="annTabNotif" role="tab" aria-selected="false" onclick="window._annSetTab('notif')">Notifikasi<span class="ann-tab-count" id="annTabCount" hidden></span></button>
                 </div>
                 <div class="ann-body">
+                    <div id="annNotifView" hidden>
+                        <p class="hzh-note">Notifikasi yang pernah masuk, terbaru di atas. Ketuk untuk membukanya lagi. Setiap notifikasi terhapus sendiri saat masa berlakunya habis.</p>
+                        <div id="hzhList"></div>
+                    </div>
                     <div id="annListView">
                         <div class="ann-hero">
                             <img src="https://www.gobox.my.id/file/vVUoB.png" alt="HidzProject" class="ann-hero-logo hidz-ann-glow" />
@@ -5321,23 +5368,6 @@
                 </div>
             </div>
 
-
-            <!-- Riwayat Notifikasi: semua notifikasi yang pernah masuk, bisa dibuka ulang & dihapus -->
-            <div class="ann-overlay" id="hzhOverlay" role="dialog" aria-labelledby="hzhTitle">
-                <div class="ann-header">
-                    <button type="button" class="icon-btn" title="Kembali" aria-label="Kembali" onclick="window.closeNotifHistory()">
-                        <i class="fas fa-arrow-left"></i>
-                    </button>
-                    <span class="ann-header-title" id="hzhTitle">Riwayat Notifikasi</span>
-                    <button type="button" class="icon-btn" id="hzhClearAll" title="Hapus semua" aria-label="Hapus semua riwayat notifikasi" disabled>
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </div>
-                <div class="ann-body">
-                    <p class="hzh-note">Notifikasi yang pernah masuk, terbaru di atas. Ketuk untuk membukanya lagi. Setiap notifikasi terhapus sendiri saat masa berlakunya habis.</p>
-                    <div id="hzhList"></div>
-                </div>
-            </div>
 
             <!-- Halaman PRICING: Upgrade ke VIP Otomatis (QRIS) -->
             <div class="ann-overlay" id="pricingOverlay">
@@ -7030,7 +7060,7 @@
             var SWEEP_EVERY_MS   = 30000;        /* seberapa sering pesan kedaluwarsa dicek dan dihapus */
 
             var PUSH_SUPPORTED = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
-            var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', project_new: 'fa-rocket', voucher_new: 'fa-ticket-alt' };
+            var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', project_new: 'fa-rocket', voucher_new: 'fa-ticket-alt', maintenance: 'fa-tools' };
 
             function byId(id) { return document.getElementById(id); }
             function deviceId() { return localStorage.getItem(DEVICE_KEY) || ''; }
@@ -7241,7 +7271,19 @@
                     .sort(function (a, b) { return (Number(b.note.createdAt) || 0) - (Number(a.note.createdAt) || 0); });
             }
 
+            /* Angka di tab "Notifikasi": jumlah riwayat, berwarna kalau ada yang belum dibaca. */
+            function updateTabCount() {
+                var chip = byId('annTabCount');
+                if (!chip) return;
+                var ids   = Object.keys(items);
+                var fresh = ids.filter(function (id) { return (Number(items[id].shown) || 0) < INBOX_MAX_SHOWS; }).length;
+                chip.hidden = !ids.length;
+                chip.textContent = ids.length > 99 ? '99+' : String(ids.length);
+                chip.classList.toggle('has-new', fresh > 0);
+            }
+
             function renderHistory() {
+                updateTabCount();
                 if (!histOpen) return;
                 var list = byId('hzhList');
                 var all  = sortedItems();
@@ -7368,16 +7410,12 @@
                 removeAll();
             });
 
-            window.openNotifHistory = function () {
-                histOpen = true;
-                histMore = false;
-                bodyOpen = {};
-                byId('hzhOverlay').classList.add('open');
-                renderHistory();
-            };
-            window.closeNotifHistory = function () {
-                histOpen = false;
-                byId('hzhOverlay').classList.remove('open');
+            /* Dipanggil halaman Pengumuman tiap kali tab Notifikasi dibuka / ditutup. */
+            window._hzNotifPage = function (open) {
+                if (open && !histOpen) { histMore = false; bodyOpen = {}; }
+                histOpen = !!open;
+                if (histOpen) renderHistory();
+                else if (excerptWatch) excerptWatch.disconnect();
             };
 
             /* ===== NOTIFIKASI CHROME (WEB PUSH) ===== */
@@ -9396,17 +9434,47 @@
                 if (detView)  detView.style.display  = 'none';
             };
 
+            /* Halaman ini punya dua tab: Pengumuman (kabar dari admin) dan Notifikasi (riwayat notifikasi akun ini). */
+            window._annSetTab = function (tab) {
+                var notif = tab === 'notif';
+                function byId(id) { return document.getElementById(id); }
+
+                byId('annTabInfo').classList.toggle('is-active', !notif);
+                byId('annTabInfo').setAttribute('aria-selected', String(!notif));
+                byId('annTabNotif').classList.toggle('is-active', notif);
+                byId('annTabNotif').setAttribute('aria-selected', String(notif));
+                byId('annTitle').textContent = notif ? 'Riwayat Notifikasi' : 'Pengumuman';
+                byId('hzhClearAll').hidden = !notif;
+                byId('annNotifView').hidden = !notif;
+                byId('annListView').style.display = 'none';
+                byId('annDetailView').style.display = 'none';
+
+                if (!notif) {
+                    window._annShowList();
+                    setLastSeen(Date.now());
+                    renderFeedBadge();
+                    renderFeedList(); /* re-render supaya chip "Baru" langsung hilang saat dibuka */
+                }
+                if (typeof window._hzNotifPage === 'function') window._hzNotifPage(notif);
+                var body = document.querySelector('#annOverlay .ann-body');
+                if (body) body.scrollTop = 0;
+            };
+
             window.openAnnounceSheet = function () {
                 var overlay = document.getElementById('annOverlay');
                 if (overlay) overlay.classList.add('open');
-                window._annShowList();
-                setLastSeen(Date.now());
-                renderFeedBadge();
-                renderFeedList(); /* re-render supaya chip "Baru" langsung hilang saat dibuka */
+                window._annSetTab('info');
+            };
+            /* Pintasan dari menu & Profil: langsung ke tab Notifikasi, tanpa menandai pengumuman sudah dilihat. */
+            window.openNotifHistory = function () {
+                var overlay = document.getElementById('annOverlay');
+                if (overlay) overlay.classList.add('open');
+                window._annSetTab('notif');
             };
             window.closeAnnounceSheet = function () {
                 var overlay = document.getElementById('annOverlay');
                 if (overlay) overlay.classList.remove('open');
+                if (typeof window._hzNotifPage === 'function') window._hzNotifPage(false);
             };
 
             function watchFeed() {

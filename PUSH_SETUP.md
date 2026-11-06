@@ -19,9 +19,12 @@ itu hitungannya tidak bisa ditulis, dan pesan hanya muncul sekali lalu dihapus.)
 
 - Pesan dalam halaman: antreannya di `hidz_notifications/{id akun}`. Hanya
   ditampilkan saat akun login **dan** tab terlihat. Tiap pesan muncul paling
-  banyak **3 kali** (sekali setiap halaman dibuka kembali), lalu dihapus;
-  hitungannya disimpan di field `shown` pada pesan itu. Kalau tab sedang
-  tidak dibuka, pesan menunggu.
+  banyak **3 kali** (sekali setiap halaman dibuka kembali); hitungannya
+  disimpan di field `shown` pada pesan itu. Kalau tab sedang tidak dibuka
+  (atau akunnya belum pernah login), pesan menunggu di antrean akunnya.
+  Pesan yang sudah dibaca tetap ada di **Riwayat Notifikasi** — tab
+  Notifikasi di halaman Pengumuman — sampai dihapus atau masa berlakunya
+  (`expiresAt`) habis.
 - Notifikasi Chrome: setelah login, user diajak mengaktifkan notifikasi
   (muncul beberapa detik setelah masuk; "Nanti" menundanya 3 hari). Langganan
   device disimpan lewat `/api/push` di `hidz_push_subs/{id akun}/{id device}`
