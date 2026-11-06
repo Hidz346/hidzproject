@@ -3157,6 +3157,7 @@
             .hzn-overlay.show { display: flex; }
             .hzn-card {
                 width: 100%; max-width: 340px;
+                max-height: 100%; overflow-y: auto;
                 background: var(--surface); color: var(--text);
                 border: 3px solid var(--border);
                 box-shadow: 6px 6px 0 var(--border);
@@ -3233,8 +3234,9 @@
             .hzh-ic.duration_added { background: var(--y2k-lime); }
             .hzh-ic.role_upgraded  { background: #fbbf24; }
             .hzh-ic.voucher_new    { background: #a78bfa; }
+            .hzh-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
             .hzh-main {
-                flex: 1; min-width: 0;
+                width: 100%;
                 display: flex; flex-direction: column; gap: 4px;
                 text-align: left; background: none; border: none; padding: 0;
                 font-family: inherit; color: inherit; cursor: pointer;
@@ -3252,6 +3254,15 @@
                 overflow: hidden; text-overflow: ellipsis;
                 display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
             }
+            .hzh-item.is-open .hzh-excerpt { display: block; overflow: visible; -webkit-line-clamp: unset; }
+            .hzh-expand {
+                background: none; border: none; padding: 2px 0; cursor: pointer;
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 10.5px; font-weight: 900;
+                text-transform: uppercase; letter-spacing: 0.5px;
+                color: var(--primary); text-decoration: underline;
+            }
+            .hzh-expand[hidden] { display: none; }
             .hzh-meta { font-size: 10px; font-weight: 700; line-height: 1.6; color: var(--text-secondary); opacity: 0.75; }
             .hzh-del {
                 width: 34px; height: 34px; flex-shrink: 0;
@@ -7051,6 +7062,7 @@
             var currentId  = null;
             var histOpen   = false;
             var histMore   = false;  /* daftar riwayat dibentangkan penuh (LIHAT LEBIH DETAIL) */
+            var bodyOpen   = {};     /* id -> isi pesan itu sedang dibentangkan penuh */
             var onDurationChange = null;
 
             var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -7249,14 +7261,17 @@
                     var unread = (Number(n.shown) || 0) < INBOX_MAX_SHOWS;
                     var end  = endOf(n);
                     html +=
-                        '<div class="hzh-item" data-id="' + escHtml(it.id) + '">' +
+                        '<div class="hzh-item' + (bodyOpen[it.id] ? ' is-open' : '') + '" data-id="' + escHtml(it.id) + '">' +
                             '<div class="hzh-ic ' + escHtml(type) + '"><i class="fas ' + (NOTE_ICONS[type] || 'fa-bell') + '"></i></div>' +
-                            '<button type="button" class="hzh-main" data-act="view">' +
-                                '<span class="hzh-title">' + escHtml(n.title) + (unread ? '<span class="hzh-chip">Baru</span>' : '') + '</span>' +
-                                '<span class="hzh-excerpt">' + escHtml(n.body) + '</span>' +
-                                '<span class="hzh-meta">' + (n.createdAt ? 'Masuk ' + stamp(n.createdAt) : '') +
-                                    (end ? '<br>Berakhir ' + stamp(end) : '') + '</span>' +
-                            '</button>' +
+                            '<div class="hzh-col">' +
+                                '<button type="button" class="hzh-main" data-act="view">' +
+                                    '<span class="hzh-title">' + escHtml(n.title) + (unread ? '<span class="hzh-chip">Baru</span>' : '') + '</span>' +
+                                    '<span class="hzh-excerpt">' + escHtml(n.body) + '</span>' +
+                                    '<span class="hzh-meta">' + (n.createdAt ? 'Masuk ' + stamp(n.createdAt) : '') +
+                                        (end ? '<br>Berakhir ' + stamp(end) : '') + '</span>' +
+                                '</button>' +
+                                '<button type="button" class="hzh-expand" data-act="expand" hidden>Lihat Lebih Detail \u2193</button>' +
+                            '</div>' +
                             '<button type="button" class="hzh-del" data-act="del" title="Hapus" aria-label="Hapus notifikasi"><i class="fas fa-trash-alt"></i></button>' +
                         '</div>';
                 });
@@ -7265,6 +7280,35 @@
                         (histMore ? 'Sembunyikan ↑' : 'Lihat Lebih Detail (' + all.length + ') ↓') + '</button>';
                 }
                 list.innerHTML = html;
+                watchExcerpts();
+            }
+
+            /* Isi pesan di daftar dipotong 2 baris; kalau memang terpotong, muncul "Lihat Lebih Detail"
+               untuk membacanya utuh. Diukur ulang tiap ukurannya berubah (layar diputar, font selesai dimuat). */
+            function fitExcerpt(row) {
+                var text = row.querySelector('.hzh-excerpt');
+                var btn  = row.querySelector('.hzh-expand');
+                if (!text || !btn) return;
+                var open = row.classList.contains('is-open');
+                btn.hidden = !(open || text.scrollHeight > text.clientHeight + 1);
+                btn.textContent = open ? 'Sembunyikan \u2191' : 'Lihat Lebih Detail \u2193';
+            }
+
+            var excerptWatch = (typeof ResizeObserver === 'function') ? new ResizeObserver(function (entries) {
+                entries.forEach(function (en) {
+                    var row = en.target.closest('.hzh-item');
+                    if (row) fitExcerpt(row);
+                });
+            }) : null;
+            if (!excerptWatch) window.addEventListener('resize', function () { if (histOpen) watchExcerpts(); });
+
+            function watchExcerpts() {
+                if (excerptWatch) excerptWatch.disconnect();
+                Array.prototype.forEach.call(byId('hzhList').querySelectorAll('.hzh-item'), function (row) {
+                    fitExcerpt(row);
+                    var text = row.querySelector('.hzh-excerpt');
+                    if (excerptWatch && text) excerptWatch.observe(text);
+                });
             }
 
             /* Buka ulang kartu sebuah notifikasi dari riwayat (tidak menghitung sebagai tampil baru). */
@@ -7281,6 +7325,7 @@
                memunculkannya lagi. */
             function removeOne(id) {
                 delete items[id];
+                delete bodyOpen[id];
                 pending = pending.filter(function (it) { return it.id !== id; });
                 renderHistory();
                 removeItem(id);
@@ -7304,6 +7349,11 @@
                 if (!id) return;
                 if (act === 'view') viewNote(id);
                 else if (act === 'del') removeOne(id);
+                else if (act === 'expand') {
+                    row.classList.toggle('is-open');
+                    bodyOpen[id] = row.classList.contains('is-open');
+                    fitExcerpt(row);
+                }
             });
 
             byId('hzhClearAll').addEventListener('click', function () {
@@ -7321,6 +7371,7 @@
             window.openNotifHistory = function () {
                 histOpen = true;
                 histMore = false;
+                bodyOpen = {};
                 byId('hzhOverlay').classList.add('open');
                 renderHistory();
             };
