@@ -40,6 +40,24 @@ async function setPath(path, value) {
     }
 }
 
+/* Gabungkan beberapa anak sekaligus ke path mana pun (PATCH): kunci yang tidak
+   disebut dibiarkan. Kunci berupa path ("uid/id") juga boleh, jadi banyak
+   penulisan di bawah satu node bisa dikirim dalam satu permintaan. */
+async function updatePath(path, value) {
+    var qs = authQS();
+    if (!qs) return false;
+    try {
+        var r = await fetch(DB_URL + '/' + path + '.json' + qs, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(value)
+        });
+        return r.ok;
+    } catch (e) {
+        return false;
+    }
+}
+
 /* Hapus path mana pun. */
 async function deletePath(path) {
     var qs = authQS();
@@ -239,6 +257,7 @@ module.exports = {
     DB_URL: DB_URL,
     fetchPath: fetchPath,
     setPath: setPath,
+    updatePath: updatePath,
     deletePath: deletePath,
     fetchAllAccounts: fetchAllAccounts,
     mutateAccounts: mutateAccounts,

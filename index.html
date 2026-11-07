@@ -2937,6 +2937,16 @@
                 background: var(--surface); border: 2.5px solid var(--border); box-shadow: var(--shadow-sm);
                 padding: 13px 12px; margin-bottom: 12px; position: relative;
             }
+            .vip-more-btn {
+                width: 100%; padding: 12px 8px; margin-top: 2px;
+                background: var(--chip-bg); color: var(--text);
+                border: 2.5px solid var(--border); box-shadow: var(--shadow-sm);
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 12px; font-weight: 900;
+                text-transform: uppercase; letter-spacing: 1px;
+                cursor: pointer;
+            }
+            .vip-more-btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--border); }
             .vip-user-card.is-exp     { opacity: 0.6; border-color: #ef4444; }
             .vip-user-card.is-active  { border-color: #22c55e; }
             .vip-user-card.is-pending { border-color: #f5a623; }
@@ -10766,6 +10776,8 @@
             var _vipDevLimit    = 1;
             var _vipSearchQ     = '';
             var _vipSortMode    = 'newest';
+            var _vipShowAll     = false;  // false = cuma 3 akun terbaru, true = semua akun dibentangkan
+            var VIP_LIST_PREVIEW = 3;
             var _vipDeleteId    = null;
 
             function getVipSession() {
@@ -10814,6 +10826,7 @@
                 if (sub) sub.textContent = 'Halo, ' + sess.username + ' — kelola akun user kamu';
                 var list = document.getElementById('vipUserList');
                 if (list) list.innerHTML = '<div class="ann-empty">Memuat data...</div>';
+                _vipShowAll = false;
                 _vipAttachListener();
             };
             window.closeVipPanel = function () {
@@ -10908,8 +10921,16 @@
                     box.innerHTML = '<div class="ann-empty">Nggak ada user yang cocok dengan pencarian "' + escVip(_vipSearchQ) + '".</div>';
                     return;
                 }
+                /* Default cuma 3 akun teratas (terbaru dibuat) biar daftarnya nggak
+                   memanjang ke bawah; sisanya muncul lewat tombol LIHAT DETAIL AKUN.
+                   Lagi nyari username → semua yang cocok langsung ditampilkan. */
+                var sorted = _vipSortedUsers(shown);
+                var total  = sorted.length;
+                var canFold = !q && total > VIP_LIST_PREVIEW;
+                if (!q && total <= VIP_LIST_PREVIEW) _vipShowAll = false;
+                var visible = (canFold && !_vipShowAll) ? sorted.slice(0, VIP_LIST_PREVIEW) : sorted;
                 var html = '';
-                _vipSortedUsers(shown).forEach(function (u) {
+                visible.forEach(function (u) {
                     var exp       = isVipExpired(u);
                     var pending   = isVipPending(u);
                     var loggedOut = pending && u.loggedOut === true;
@@ -10937,8 +10958,13 @@
                         '<div class="vip-meta-line"><i class="fas fa-mobile-alt" style="margin-right:4px;opacity:.6;"></i>Limit: ' + devLabel + '</div>' +
                         '</div>';
                 });
+                if (canFold) {
+                    html += '<button type="button" class="vip-more-btn" onclick="window._vipToggleShowAll()">' +
+                        (_vipShowAll ? 'Sembunyikan \u2191' : 'Lihat Detail Akun \u2193') + '</button>';
+                }
                 box.innerHTML = html;
             }
+            window._vipToggleShowAll = function () { _vipShowAll = !_vipShowAll; _vipRenderList(); };
             window._vipFilterUsers = function (val) { _vipSearchQ = val; _vipRenderList(); };
             window._vipSetSort = function (mode) { _vipSortMode = mode; _vipRenderList(); };
 

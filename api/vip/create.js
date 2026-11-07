@@ -4,6 +4,7 @@
 
 var db = require('../_lib/db');
 var pw = require('../_lib/password');
+var notifSeed = require('../_lib/notif-seed');
 
 var securityGuard = require('../_lib/security');
 
@@ -98,5 +99,13 @@ module.exports = async function (req, res) {
         return;
     }
     await db.clearRateLimitByKey(VIP_RATE_PATH, vipId);
-    res.status(200).json(out.result.response);
+
+    /* Akun baru juga berhak atas notifikasi "untuk semua akun" yang masih berlaku (voucher baru, project
+       baru, dst.), sama seperti akun yang dibuat dari HIDZADMIN. Best-effort: gagal di sini tidak
+       mengganggu pembuatan akunnya. */
+    var created = out.result.response;
+    if (created && created.ok === true && created.user && created.user.id) {
+        await notifSeed.seedNewAccount(created.user.id);
+    }
+    res.status(200).json(created);
 };

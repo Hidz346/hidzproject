@@ -25,6 +25,10 @@ itu hitungannya tidak bisa ditulis, dan pesan hanya muncul sekali lalu dihapus.)
   Pesan yang sudah dibaca tetap ada di **Riwayat Notifikasi** — tab
   Notifikasi di halaman Pengumuman — sampai dihapus atau masa berlakunya
   (`expiresAt`) habis.
+- Akun yang dibuat dari **Panel VIP** (`/api/vip/create`) langsung mendapat salinan notifikasi
+  project baru dan voucher yang masih berlaku, sama seperti akun yang dibuat dari HidzAdmin
+  (maintenance tidak disalin; voucher yang sudah dihapus, berakhir, atau kuotanya habis dilewati).
+  Logikanya ada di `api/_lib/notif-seed.js` — file bantu, bukan Serverless Function.
 - Notifikasi Chrome: setelah login, user diajak mengaktifkan notifikasi
   (muncul beberapa detik setelah masuk; "Nanti" menundanya 3 hari). Langganan
   device disimpan lewat `/api/push` di `hidz_push_subs/{id akun}/{id device}`
