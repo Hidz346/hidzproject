@@ -19,11 +19,13 @@ var COOLDOWN_PATH   = CHAT_PATH + '/cooldown';
 var ADMIN_UID       = 'admin_hidz_protected';
 var ADMIN_NAME      = 'Hidz';
 var MAX_TEXT_LENGTH = 500;
+var QUOTE_LENGTH    = 120;     // panjang kutipan yang disimpan di pesan balasan
 var COOLDOWN_MS     = 1500;
 var ID_PAST_MS      = 30000;   // kunci pesan dari browser boleh sampai 30 detik lebih lama dari jam server
 var ID_FUTURE_MS    = 10000;   // ...dan sampai 10 detik lebih cepat
 var KEEP_MESSAGES   = 300;
 var PRUNE_CHANCE    = 0.05;
+var MESSAGE_ID      = /^[0-9]{13}-[a-z0-9]{6}$/;
 
 function isExpired(acc, now) {
     var paused = typeof acc.pausedRemainingMs === 'number' && acc.pausedRemainingMs > 0;
@@ -68,6 +70,19 @@ function cleanText(raw) {
         .trim();
 }
 
+/* Kutipan untuk pesan balasan, disusun di server dari pesan aslinya (bukan dari kiriman browser), jadi
+   tidak bisa dipakai untuk memalsukan "si A bilang ...". Pesan yang sudah dihapus tidak bisa dibalas. */
+function buildReply(original, id) {
+    if (!original || typeof original !== 'object' || original.delAll === true || typeof original.text !== 'string') return null;
+    var text = cleanText(original.text);
+    if (text.length > QUOTE_LENGTH) {
+        var cut = text.slice(0, QUOTE_LENGTH - 1);
+        if (/[\ud800-\udbff]$/.test(cut)) cut = cut.slice(0, -1);   // jangan memenggal emoji
+        text = cut.replace(/\s+$/, '') + '\u2026';
+    }
+    return { id: id, uid: String(original.uid || ''), name: String(original.name || 'User'), text: text };
+}
+
 /* ID pesan berurutan waktu (13 digit milidetik + akhiran acak), jadi urutan kunci
    di Firebase sama dengan urutan kirimnya. */
 function messageId(now) {
@@ -78,7 +93,7 @@ function messageId(now) {
    dicocokkan dengan salinannya dari Firebase. Dipakai hanya kalau bentuknya benar dan waktunya
    wajar; kalau tidak, server membuat kunci sendiri dan browser mengikuti kunci dari server. */
 function clientId(hint, now) {
-    if (typeof hint !== 'string' || !/^[0-9]{13}-[a-z0-9]{6}$/.test(hint)) return null;
+    if (typeof hint !== 'string' || !MESSAGE_ID.test(hint)) return null;
     var ts = parseInt(hint.slice(0, 13), 10);
     if (ts < now - ID_PAST_MS || ts > now + ID_FUTURE_MS) return null;
     return { id: hint, ts: ts };
@@ -120,11 +135,19 @@ async function sendMessage(auth, req, res) {
         return;
     }
 
+    /* Membalas pesan lain: id pesan yang dibalas harus berbentuk benar dan pesannya harus masih ada */
+    var replyId = (req.body || {}).replyTo;
+    if (replyId !== undefined && replyId !== null && (typeof replyId !== 'string' || !MESSAGE_ID.test(replyId))) {
+        res.status(200).json({ ok: false, reason: 'invalid_reply', message: 'Pesan yang dibalas tidak valid.' });
+        return;
+    }
+
     var now = Date.now();
     var pick = clientId((req.body || {}).id, now);
     var checks = await Promise.all([
         db.fetchPath(COOLDOWN_PATH + '/' + auth.uid),
-        pick ? db.fetchPath(MESSAGES_PATH + '/' + pick.id) : null
+        pick ? db.fetchPath(MESSAGES_PATH + '/' + pick.id) : null,
+        replyId ? db.fetchPath(MESSAGES_PATH + '/' + replyId) : null
     ]);
     var last = checks[0];
     if (typeof last === 'number' && now - last < COOLDOWN_MS) {
@@ -132,12 +155,23 @@ async function sendMessage(auth, req, res) {
         return;
     }
 
+    var reply = null;
+    if (replyId) {
+        reply = buildReply(checks[2], replyId);
+        if (!reply) {
+            res.status(200).json({ ok: false, reason: 'reply_gone', message: 'Pesan yang kamu balas sudah dihapus.' });
+            return;
+        }
+    }
+
     /* Kunci dari browser tidak boleh menimpa pesan yang sudah ada */
     var id = (pick && !checks[1]) ? pick.id : messageId(now);
     var ts = (pick && !checks[1]) ? pick.ts : now;
+    var record = { uid: auth.uid, name: auth.name, role: auth.role, text: text, ts: ts };
+    if (reply) record.reply = reply;
     var written = await Promise.all([
         db.setPath(COOLDOWN_PATH + '/' + auth.uid, now),
-        db.setPath(MESSAGES_PATH + '/' + id, { uid: auth.uid, name: auth.name, role: auth.role, text: text, ts: ts })
+        db.setPath(MESSAGES_PATH + '/' + id, record)
     ]);
     if (!written[1]) {
         res.status(200).json({ ok: false, reason: 'db_error' });
@@ -153,7 +187,7 @@ async function sendMessage(auth, req, res) {
    (sama seperti "Hapus untuk semua" di Konseling). */
 async function deleteMessage(auth, req, res) {
     var id = (req.body || {}).messageId;
-    if (typeof id !== 'string' || !/^[0-9]{13}-[a-z0-9]{6}$/.test(id)) {
+    if (typeof id !== 'string' || !MESSAGE_ID.test(id)) {
         res.status(200).json({ ok: false, reason: 'invalid_id' });
         return;
     }
