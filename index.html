@@ -5251,7 +5251,7 @@
         </script>
 
         <!-- Audio Utama Permanen -->
-        <audio id="bgMusic" loop>
+        <audio id="bgMusic" loop preload="none">
             <source
                 src="https://audio.jukehost.co.uk/01a18d50-31e2-71ba-b7be-01326924c3fa"
                 type="audio/mpeg"
@@ -9653,6 +9653,7 @@
 
             var _cache   = {};   // uid -> dataURL foto custom (null = belum ada / masih default)
             var _watched = {};   // uid -> true kalau listener-nya sudah dipasang
+            var _denied  = {};   // uid -> true kalau ditolak Rules karena belum login; dicoba lagi begitu login
             var _myUid   = null;
 
             function getSess() {
@@ -9675,6 +9676,10 @@
                 return 'https://www.gobox.my.id/file/vVUoB.png';
             }
 
+            function signedIn() {
+                try { return !!(firebase.auth && firebase.auth().currentUser); } catch (e) { return false; }
+            }
+
             function watch(uid) {
                 if (!uid || _watched[uid]) return;
                 _watched[uid] = true;
@@ -9683,6 +9688,13 @@
                         _cache[uid] = snap.val() || null;
                         window.dispatchEvent(new CustomEvent('hidz:photo-updated', { detail: { uid: uid } }));
                     }, function (err) {
+                        /* Belum login (halaman verifikasi / form login): ditolak Rules itu wajar,
+                           jadi bukan error. Listener-nya dipasang lagi begitu login. */
+                        if (err && err.code === 'PERMISSION_DENIED' && !signedIn()) {
+                            _watched[uid] = false;
+                            _denied[uid] = true;
+                            return;
+                        }
                         /* Jangan didiemin kalau ternyata Firebase yang nolak
                            (misal Rules belum ngizinin path ini) — supaya
                            ketahuan dari console tanpa perlu nebak-nebak lagi */
@@ -9691,6 +9703,15 @@
                     });
                 });
             }
+
+            ensureFb(function () {
+                try {
+                    firebase.auth().onAuthStateChanged(function (user) {
+                        if (!user) return;
+                        Object.keys(_denied).forEach(function (uid) { delete _denied[uid]; watch(uid); });
+                    });
+                } catch (e) {}
+            });
 
             /* URL foto siap pakai — otomatis balik ke logo default kalau
                akunnya belum pernah custom foto sendiri. */
