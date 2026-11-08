@@ -79,6 +79,9 @@ self.addEventListener('fetch', function (event) {
 
 var NOTIF_ICON = 'https://www.gobox.my.id/file/vVUoB.png';
 
+/* Tujuan notifikasi balasan/tag di Chat Global (dikirim server, lihat api/_lib/chat-push.js) */
+var GC_URL = './?gc=1';
+
 /* Langganan Safari (iPhone, iPad, Mac) selalu beralamat di push.apple.com.
    Kalau gagal dibaca dianggap bukan Safari, perilakunya sama seperti dulu. */
 function isApplePush() {
@@ -97,7 +100,7 @@ self.addEventListener('push', function (event) {
         icon:  NOTIF_ICON,
         badge: NOTIF_ICON,
         tag:   data.tag || 'hidz-info',
-        data:  { url: './' }
+        data:  { url: data.url === GC_URL ? GC_URL : './' }
     };
 
     event.waitUntil(
@@ -121,7 +124,11 @@ self.addEventListener('notificationclick', function (event) {
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
             for (var i = 0; i < list.length; i++) {
-                if ('focus' in list[i]) return list[i].focus();
+                if ('focus' in list[i]) {
+                    /* Notifikasi Chat Global: tab yang sudah terbuka diminta langsung membuka Chat Global */
+                    if (target === GC_URL) list[i].postMessage({ type: 'hidz-open-chat-global' });
+                    return list[i].focus();
+                }
             }
             return self.clients.openWindow(target);
         })

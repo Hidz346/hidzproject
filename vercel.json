@@ -37,6 +37,10 @@
       "destination": "/api/check-session?vipAction=chat-delete"
     },
     {
+      "source": "/api/chat/members",
+      "destination": "/api/check-session?vipAction=chat-members"
+    },
+    {
       "source": "/paket",
       "destination": "/paket.html"
     },

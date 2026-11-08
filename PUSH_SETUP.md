@@ -9,7 +9,10 @@ Pengirimnya ada di project HidzAdmin (lihat `PUSH_SETUP.md` di sana).
 
 **Environment Variable** project HidzProject di Vercel:
 
-    VAPID_PUBLIC_KEY = (sama persis dengan VAPID_PUBLIC_KEY di HidzAdmin)
+    VAPID_PUBLIC_KEY  = (sama persis dengan VAPID_PUBLIC_KEY di HidzAdmin)
+    VAPID_PRIVATE_KEY = (sama persis dengan VAPID_PRIVATE_KEY di HidzAdmin; baru dipakai untuk
+                         notifikasi balasan/tag Chat Global, lihat bagian di bawah)
+    VAPID_SUBJECT     = (opsional, bawaan https://hidzproject.my.id)
 
 Lalu salin `databaserules.json` ke Firebase Realtime Database → Rules → Publish.
 (Rules ini wajib di-publish ulang setelah pembaruan penghitung tampil — tanpa
@@ -36,6 +39,30 @@ itu hitungannya tidak bisa ditulis, dan pesan hanya muncul sekali lalu dihapus.)
 - Logout manual melepas langganan device itu dari akunnya.
 - Kalau tab HidzProject sedang terbuka dan terlihat, notifikasi Chrome sengaja
   tidak ditampilkan supaya tidak dobel dengan kartu di dalam halaman.
+
+## Balasan dan tag (@) di Chat Global
+
+Akun yang pesannya dibalas, atau yang di-tag (@nama), mendapat:
+
+- Di dalam halaman: gelembung bertanda "Menyebut kamu" / "Membalas kamu", titik di tombol Chat
+  berubah warna, lencana "@" di kartu Chat Global, nada pendek + kabar singkat. Pesan lain
+  di Chat Global tetap hanya menambah titik merah biasa tanpa bunyi.
+- Notifikasi Chrome (walau tab tidak dibuka), hanya untuk balasan/tag. Mengetuknya membuka
+  Chat Global (`/?gc=1`); kalau HidzProject sudah terbuka di tab lain, tab itu yang dipakai.
+
+Menu tag diambil dari `/api/chat/members` (rewrite ke `/api/check-session?vipAction=chat-members`,
+jadi tidak menambah Serverless Function). Isinya akun VIP aktif + ADMIN, dibaca langsung dari
+database setiap diminta, jadi akun yang baru dibuat langsung ada di menu tanpa login ulang.
+Hanya VIP/ADMIN yang boleh memintanya. Server hanya mempercayai id akun yang dikirim client:
+nama diambil dari database, harus akun aktif, bukan diri sendiri, dan `@nama` memang ada di teks.
+
+Pengiriman notifikasi Chrome ada di `api/_lib/chat-push.js` (file bantu, bukan function) dan
+memakai paket `web-push` dari `package.json` di root repo. Kalau paket atau `VAPID_PRIVATE_KEY`
+belum ada, pengiriman push dilewati begitu saja (ada satu baris peringatan di log Vercel):
+pesan tetap terkirim dan tanda di dalam halaman tetap jalan. Pesan dari HidzAdmin memakai
+jalur yang sama lewat `push.notifyChat` di sisi HidzAdmin.
+
+Rules Firebase tidak perlu diubah: field `reply` dan `mentions` lolos validasi yang ada.
 
 ## Batas Serverless Function
 

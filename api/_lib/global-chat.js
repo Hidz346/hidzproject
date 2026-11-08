@@ -6,12 +6,18 @@
    di setiap kirim — USER tidak bisa mengirim walau mengakali tampilan, dan USER
    yang baru membeli VIP langsung bisa kirim tanpa login ulang.
 
-   File ini dipanggil dari check-session.js lewat vercel.json (/api/chat/send dan
-   /api/chat/delete). Tidak dibuat sebagai fungsi tersendiri karena jumlah fungsi
-   di plan Hobby sudah mentok. */
+   Pesan bisa membalas pesan lain (reply) dan menandai akun VIP/ADMIN dengan @nama
+   (mentions). Kutipan balasan dan daftar akun yang ditag disusun di sini dari data
+   database, bukan dari kiriman browser, jadi tidak bisa dipalsukan. Akun yang dibalas
+   atau ditag juga mendapat notifikasi Chrome lewat chat-push.js.
+
+   File ini dipanggil dari check-session.js lewat vercel.json (/api/chat/send,
+   /api/chat/delete, /api/chat/members). Tidak dibuat sebagai fungsi tersendiri karena
+   jumlah fungsi di plan Hobby sudah mentok. */
 
 var db = require('./db');
 var firebaseAuth = require('./firebase-auth');
+var chatPush = require('./chat-push');
 
 var CHAT_PATH       = 'hidz_global_chat';
 var MESSAGES_PATH   = CHAT_PATH + '/messages';
@@ -26,10 +32,67 @@ var ID_FUTURE_MS    = 10000;   // ...dan sampai 10 detik lebih cepat
 var KEEP_MESSAGES   = 300;
 var PRUNE_CHANCE    = 0.05;
 var MESSAGE_ID      = /^[0-9]{13}-[a-z0-9]{6}$/;
+var ACCOUNT_ID      = /^[A-Za-z0-9_-]{1,128}$/;
+var MAX_MENTIONS    = 8;       // akun yang boleh ditag dalam satu pesan
+var WORD_CHAR       = /[A-Za-z0-9_]/;
 
 function isExpired(acc, now) {
     var paused = typeof acc.pausedRemainingMs === 'number' && acc.pausedRemainingMs > 0;
     return !paused && !!acc.expiresAt && now > acc.expiresAt;
+}
+
+/* Akun yang bisa ditag: semua VIP dan ADMIN yang masih aktif, termasuk akun yang baru dibuat dan belum
+   pernah login. Dibaca dari database, jadi akun baru langsung ikut tanpa menunggu apa pun. */
+function memberList(accounts, now) {
+    var seen = {};
+    var out = [];
+    accounts.forEach(function (u) {
+        if (!u || typeof u.username !== 'string' || !u.username || !ACCOUNT_ID.test(String(u.id || ''))) return;
+        var role = u.role === 'admin' ? 'admin' : (u.role === 'vip' ? 'vip' : '');
+        if (!role || isExpired(u, now) || seen[u.id]) return;
+        seen[u.id] = true;
+        out.push({ uid: u.id, name: u.id === ADMIN_UID ? ADMIN_NAME : u.username, role: role });
+    });
+    if (!seen[ADMIN_UID]) out.push({ uid: ADMIN_UID, name: ADMIN_NAME, role: 'admin' });
+    return out;
+}
+
+/* Selalu dibaca langsung dari database (tanpa simpanan), supaya akun yang baru dibuat langsung ikut.
+   `known` = daftar akun yang sudah dibaca untuk memeriksa pengirim, biar tidak dibaca dua kali. */
+async function getMembers(known) {
+    var accounts = known || await db.fetchAllAccounts();
+    return accounts ? memberList(accounts, Date.now()) : null;
+}
+
+/* "@nama" berdiri sendiri di teks (bukan bagian dari kata lain, mis. email atau @namaLain) */
+function mentionedInText(text, name) {
+    var needle = '@' + name;
+    var i = 0;
+    while ((i = text.indexOf(needle, i)) !== -1) {
+        var before = i > 0 ? text.charAt(i - 1) : '';
+        var after  = text.charAt(i + needle.length);
+        if ((!before || !WORD_CHAR.test(before)) && (!after || !WORD_CHAR.test(after))) return true;
+        i += 1;
+    }
+    return false;
+}
+
+/* Akun yang benar-benar ditag: harus anggota aktif (VIP/ADMIN), bukan pengirimnya sendiri, dan "@nama"-nya
+   memang tertulis di pesan — supaya tidak ada yang bisa memanggil orang tanpa terlihat. Nama diambil dari
+   database. Yang tidak memenuhi syarat dibuang diam-diam, pesannya tetap terkirim. */
+function buildMentions(ids, text, members, senderUid) {
+    var byUid = {};
+    members.forEach(function (m) { byUid[m.uid] = m; });
+    var seen = {};
+    var out = [];
+    ids.forEach(function (id) {
+        var m = byUid[id];
+        if (!m || id === senderUid || seen[id] || out.length >= MAX_MENTIONS) return;
+        if (!mentionedInText(text, m.name)) return;
+        seen[id] = true;
+        out.push({ uid: m.uid, name: m.name });
+    });
+    return out;
 }
 
 /* Siapa yang mengirim request ini? Identitas diambil dari token Firebase, role dan
@@ -55,7 +118,7 @@ async function authenticate(req) {
     if (isExpired(acc, Date.now())) return { ok: false, reason: 'expired' };
 
     var role = (acc.role === 'vip' || acc.role === 'admin') ? acc.role : 'user';
-    return { ok: true, uid: uid, role: role, name: acc.username, canModerate: false };
+    return { ok: true, uid: uid, role: role, name: acc.username, canModerate: false, accounts: list };
 }
 
 /* Karakter kontrol dan karakter tak terlihat (zero-width, pemisah baris/paragraf, BOM). */
@@ -142,6 +205,15 @@ async function sendMessage(auth, req, res) {
         return;
     }
 
+    /* Akun yang ditag: hanya id-nya yang dikirim browser, sisanya (nama, apakah masih aktif) dari database */
+    var tagIds = [];
+    var rawTags = (req.body || {}).mentions;
+    if (Array.isArray(rawTags)) {
+        rawTags.slice(0, MAX_MENTIONS * 2).forEach(function (id) {
+            if (typeof id === 'string' && ACCOUNT_ID.test(id) && tagIds.indexOf(id) === -1) tagIds.push(id);
+        });
+    }
+
     var now = Date.now();
     var pick = clientId((req.body || {}).id, now);
     var checks = await Promise.all([
@@ -169,6 +241,11 @@ async function sendMessage(auth, req, res) {
     var ts = (pick && !checks[1]) ? pick.ts : now;
     var record = { uid: auth.uid, name: auth.name, role: auth.role, text: text, ts: ts };
     if (reply) record.reply = reply;
+    if (tagIds.length) {
+        var members = await getMembers(auth.accounts);
+        var mentions = members ? buildMentions(tagIds, text, members, auth.uid) : [];
+        if (mentions.length) record.mentions = mentions;
+    }
     var written = await Promise.all([
         db.setPath(COOLDOWN_PATH + '/' + auth.uid, now),
         db.setPath(MESSAGES_PATH + '/' + id, record)
@@ -178,8 +255,25 @@ async function sendMessage(auth, req, res) {
         return;
     }
 
+    /* Notifikasi Chrome untuk yang dibalas/ditag; tidak pernah menggagalkan pengiriman */
+    if (record.reply || record.mentions) await chatPush.notifyChat(record, id, auth.uid);
+
     if (Math.random() < PRUNE_CHANCE) await pruneOldMessages();
     res.status(200).json({ ok: true, id: id });
+}
+
+/* Daftar akun VIP & ADMIN untuk menu tag (@) di kolom pesan */
+async function listMembers(auth, res) {
+    if (auth.role === 'user') {
+        res.status(200).json({ ok: false, reason: 'vip_required' });
+        return;
+    }
+    var members = await getMembers();
+    if (!members) {
+        res.status(200).json({ ok: false, reason: 'db_error' });
+        return;
+    }
+    res.status(200).json({ ok: true, members: members });
 }
 
 /* Pengirim boleh menghapus pesannya sendiri; ADMIN boleh menghapus pesan siapa pun. Pesan tidak dibuang,
@@ -222,7 +316,8 @@ async function handleAction(action, req, res) {
     }
     if (action === 'chat-send')   { await sendMessage(auth, req, res); return; }
     if (action === 'chat-delete') { await deleteMessage(auth, req, res); return; }
+    if (action === 'chat-members') { await listMembers(auth, res); return; }
     res.status(200).json({ ok: false });
 }
 
-module.exports = { handleAction: handleAction };
+module.exports = { handleAction: handleAction, _test: { memberList: memberList, buildMentions: buildMentions, mentionedInText: mentionedInText } };
