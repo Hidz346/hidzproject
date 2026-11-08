@@ -33,6 +33,8 @@ Vercel deployment bersifat immutable; script ini tidak mencoba "memperbaiki" fil
 ## CSP reports
 CSP `Report-Only` tetap dipakai sebagai telemetry. Laporan browser tidak lagi masuk ke daftar `Event Terbaru` sebagai ancaman, karena satu halaman dapat menghasilkan beberapa laporan CSP yang sah. HidzAdmin hanya menampilkan jumlah laporan CSP secara terpisah.
 
+Kebijakan di `vercel.json` sudah disamakan dengan sumber yang benar-benar dipakai situs (script dari `www.gstatic.com`; style dan font dari Google Fonts dan cdnjs; gambar, media, koneksi, dan frame project lewat `https:`). Dengan begitu halaman tidak lagi menghasilkan ratusan laporan per pemuatan dan laporan yang masuk benar-benar patut dilihat. Kalau beberapa hari tidak ada laporan baru di `hidz_security_csp_reports`, kebijakan ini bisa mulai diberlakukan dengan mengganti nama header `Content-Security-Policy-Report-Only` menjadi `Content-Security-Policy`.
+
 ## Rate limiting aplikasi
 Security guard menerapkan jendela 60 detik dengan batas 90 request per IP pada endpoint yang dilindungi. Pelampauan batas menghasilkan HTTP 429 dan blokir sementara 10 menit. Ambang ini adalah lapisan aplikasi, bukan pengganti rate limiting di CDN/WAF.
 
