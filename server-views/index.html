@@ -91,18 +91,11 @@ rel="apple-touch-icon"
 href="https://www.gobox.my.id/file/vVUoB.png"
 />
 <link rel="manifest" href="/manifest.json" />
-<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript></noscript>
-<link
-rel="preconnect"
-href="https://fonts.googleapis.com"
-/>
-<link
-rel="preconnect"
-href="https://fonts.gstatic.com"
-crossorigin
-/>
-<link rel="preload" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"></noscript>
-<link rel="preload" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap"></noscript>
+</noscript>
+
+
+
+
 <style>
 * {
 margin: 0;
@@ -3177,12 +3170,12 @@ var MNT_SRCDOC = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>HidzProject — Maintenance</title>
 <link rel="icon" type="image/png" href="https://www.gobox.my.id/file/vVUoB.png"/>
-<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript></noscript>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="preload" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@400;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@400;600;700;800;900&display=swap"></noscript>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"><\/script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"><\/script>
+</noscript>
+
+
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"><\/script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"><\/script>
 <style>
 *, *::before, *::after {
 margin: 0; padding: 0; box-sizing: border-box;
@@ -3568,7 +3561,15 @@ white-space:nowrap; pointer-events:none;
 }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
-</head>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" as="style">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" media="print" onload="this.media='all'">
+  </head>
 <body>
 <div class="bg-lines"></div>
 <div class="pts" id="pts"></div>
@@ -3859,9 +3860,9 @@ t.secondary
 } catch (e) {}
 }
 </script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script>
 if (typeof firebase === 'undefined') {
 document.write(
@@ -3885,7 +3886,7 @@ document.write(
 <div id="hzGate" role="dialog" aria-modal="true" aria-labelledby="hzgTitle" data-host="hidzproject.my.id" data-sitekey="" data-verify-url="/api/login">
 <div class="hzg-main">
 <div class="hzg-site">
-<span class="hzg-icon"><img src="https://www.gobox.my.id/file/vVUoB.png" alt="" width="58" height="58" onerror="this.parentNode.classList.add('hzg-noimg');this.remove()"></span>
+<span class="hzg-icon"><img src="https://www.gobox.my.id/file/vVUoB.png" alt="Hidz" width="58" height="58" fetchpriority="high" loading="eager" decoding="async" onerror="this.parentNode.classList.add('hzg-noimg');this.remove()"></span>
 <span class="hzg-host" id="hzgHost"></span>
 </div>
 <h1 class="hzg-title" id="hzgTitle">Melakukan verifikasi keamanan</h1>
@@ -4424,7 +4425,7 @@ type="audio/mpeg"
 <div id="loginOverlay">
 <div class="lc-wrap">
 <div class="lc-header">
-<img class="lc-logo" src="https://www.gobox.my.id/file/vVUoB.png" alt="Logo" width="58" height="58">
+<img class="lc-logo" src="https://www.gobox.my.id/file/vVUoB.png" alt="Logo" width="58" height="58" fetchpriority="high" loading="eager" decoding="async">
 <div>
 <div class="lc-app-name">HidzProject</div>
 <div class="lc-app-sub">Original Version</div>
