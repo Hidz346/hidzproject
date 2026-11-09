@@ -4789,47 +4789,47 @@ Kembali ke Pricing
 </div>
 </div>
 <div class="ann-overlay kons-overlay" id="konselingOverlay">
-<div class="ann-header">
-<button class="icon-btn" title="Kembali" onclick="window.closeKonseling()">
-<i class="fas fa-arrow-left"></i>
-</button>
-<div class="kons-header-mid">
-<span class="ann-header-title">Konseling</span>
-<span class="kons-header-sub" id="konsHeaderSub">Chat langsung dengan admin</span>
-</div>
-<div class="kons-avatar-box role-admin" id="konsHdrAvatarBox">
-<img id="konsHdrAvatarImg" src="" alt="">
-<span class="kons-role-ico"><i class="fas fa-shield-halved"></i></span>
-<span class="kons-dot" id="konsHdrDot"></span>
-</div>
-</div>
-<div class="kons-messages" id="konsMessages">
-<div class="kons-empty" id="konsEmpty">
-<i class="fas fa-comments"></i>
-<p>Belum ada percakapan.<br>Tulis pesan buat mulai konseling sama admin.</p>
-</div>
-</div>
-<div class="kons-typing-row" id="konsTypingRow">
-<span class="kons-typing-bubble"><i class="fas fa-ellipsis"></i> Admin sedang mengetik...</span>
-</div>
-<div class="kons-reply-bar" id="konsReplyBar">
-<div class="kons-reply-body"><span class="kons-reply-name"></span><span class="kons-reply-text"></span></div>
-<button type="button" class="kons-reply-x" title="Batal membalas" onclick="window._konsCancelReply()"><i class="fas fa-xmark"></i></button>
-</div>
-<div class="kons-input-bar">
-<input type="text" class="kons-text-input" id="konsTextInput" placeholder="Tulis pesan..." autocomplete="off" oninput="window._konsHandleTyping()" onkeydown="if(event.key==='Enter'){event.preventDefault();window._konsSendText();}">
-<button type="button" class="kons-send-btn" title="Kirim" onclick="window._konsSendText()">
-<i class="fas fa-paper-plane"></i>
-</button>
-</div>
-<div class="kons-msg-menu" id="konsMsgMenu">
-<button type="button" id="konsReplyBtn" onclick="window._konsReplyFromMenu()"><i class="fas fa-reply"></i> Balas</button>
-<button type="button" onclick="window._konsDeleteForMe()"><i class="fas fa-trash"></i> Hapus untuk saya</button>
-<button type="button" id="konsDeleteAllBtn" onclick="window._konsDeleteForEveryone()"><i class="fas fa-trash-can"></i> Hapus untuk semua</button>
-<button type="button" onclick="window._konsCloseMsgMenu()">Batal</button>
+            <div class="ann-header">
+                <button class="icon-btn" title="Kembali" onclick="window.closeKonseling()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="kons-header-mid">
+                    <span class="ann-header-title">Konseling</span>
+                    <span class="kons-header-sub" id="konsHeaderSub">Chat langsung dengan admin</span>
                 </div>
-                <input type="text" id="konsReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._konsSetReaction(this.value.trim());this.value=;this.blur();}">
+                <div class="kons-avatar-box role-admin" id="konsHdrAvatarBox">
+                    <img id="konsHdrAvatarImg" src="" alt="">
+                    <span class="kons-role-ico"><i class="fas fa-shield-halved"></i></span>
+                    <span class="kons-dot" id="konsHdrDot"></span>
+                </div>
             </div>
+            <div class="kons-messages" id="konsMessages">
+                <div class="kons-empty" id="konsEmpty">
+                    <i class="fas fa-comments"></i>
+                    <p>Belum ada percakapan.<br>Tulis pesan buat mulai konseling sama admin.</p>
+                </div>
+            </div>
+            <div class="kons-typing-row" id="konsTypingRow">
+                <span class="kons-typing-bubble"><i class="fas fa-ellipsis"></i> Admin sedang mengetik...</span>
+            </div>
+            <div class="kons-reply-bar" id="konsReplyBar">
+                <div class="kons-reply-body"><span class="kons-reply-name"></span><span class="kons-reply-text"></span></div>
+                <button type="button" class="kons-reply-x" title="Batal membalas" onclick="window._konsCancelReply()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="kons-input-bar">
+                <input type="text" class="kons-text-input" id="konsTextInput" placeholder="Tulis pesan..." autocomplete="off" oninput="window._konsHandleTyping()" onkeydown="if(event.key==='Enter'){event.preventDefault();window._konsSendText();}">
+                <button type="button" class="kons-send-btn" title="Kirim" onclick="window._konsSendText()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <div class="kons-msg-menu" id="konsMsgMenu">
+                <button type="button" id="konsReplyBtn" onclick="window._konsReplyFromMenu()"><i class="fas fa-reply"></i> Balas</button>
+                <button type="button" onclick="window._konsDeleteForMe()"><i class="fas fa-trash"></i> Hapus untuk saya</button>
+                <button type="button" id="konsDeleteAllBtn" onclick="window._konsDeleteForEveryone()"><i class="fas fa-trash-can"></i> Hapus untuk semua</button>
+                <button type="button" onclick="window._konsCloseMsgMenu()">Batal</button>
+            </div>
+            <input type="text" id="konsReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._konsSetReaction(this.value.trim());this.value='';this.blur();}">
+        </div>
 
             <!-- Chat: satu pintu untuk Konseling (chat dengan admin) dan Chat Global -->
             <div class="ann-overlay chathub-overlay" id="chatHubOverlay">
@@ -8463,28 +8463,26 @@ delAll: true, text: '', url: '', name: '', reply: null
 window._konsCloseMsgMenu();
 };
 window._konsOpenReactPicker = function (key) {
-                var m = _msgs[key];
-                if (!m || m.delAll) return;
-                _reactKey = key;
-                var inp = document.getElementById(konsReactHiddenInput);
-                if (inp) { inp.value = ; inp.focus(); }
-            };
-window._konsCloseReactPicker = function () {
-_reactKey = null;
-var picker = document.getElementById('konsReactPicker');
-if (picker) picker.classList.remove('show');
-};
-window._konsSetReaction = function (emoji) {
-if (!_reactKey || !_uid) { window._konsCloseReactPicker(); return; }
-var m = _msgs[_reactKey];
-var current = m && m.reactions && m.reactions.user;
-var next = (current === emoji) ? null : emoji;  
-var ref = firebase.database().ref(KONS_MSG_REF + '/' + _uid + '/' + _reactKey + '/reactions/user');
-(next ? ref.set(next) : ref.remove()).catch(function (err) {
-showHzToast('Gagal mengirim reaksi'); console.error('[Konseling] set reaksi gagal', err);
-});
-window._konsCloseReactPicker();
-};
+            var m = _msgs[key];
+            if (!m || m.delAll) return;
+            _reactKey = key;
+            var inp = document.getElementById('konsReactHiddenInput');
+            if (inp) { inp.value = ''; inp.focus(); }
+        };
+        window._konsCloseReactPicker = function () {
+            _reactKey = null;
+        };
+        window._konsSetReaction = function (emoji) {
+            if (!_reactKey || !_uid) { window._konsCloseReactPicker(); return; }
+            var m = _msgs[_reactKey];
+            var current = m && m.reactions && m.reactions.user;
+            var next = (current === emoji) ? null : emoji;
+            var ref = firebase.database().ref(KONS_MSG_REF + '/' + _uid + '/' + _reactKey + '/reactions/user');
+            (next ? ref.set(next) : ref.remove()).catch(function (err) {
+                showHzToast('Gagal mengirim reaksi'); console.error('[Konseling] set reaksi gagal', err);
+            });
+            window._konsCloseReactPicker();
+        };
 function attachListeners() {
 if (_listenersOn) return;
 _listenersOn = true;
