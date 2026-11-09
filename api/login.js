@@ -151,3 +151,14 @@ module.exports = async function (req, res) {
         }
     });
 };
+
+/* === HIDZ_TURNSTILE_GUARD === */
+const _hzOrigLoginHandler = module.exports;
+const _hzTurnstileLib = require("./_lib/turnstile");
+module.exports = async function (req, res) {
+    if (req.method === "POST") {
+        if (await _hzTurnstileLib.handleTurnstileGateActions(req, res)) return;
+        if (!(await _hzTurnstileLib.requireTurnstileForLogin(req, res))) return;
+    }
+    return _hzOrigLoginHandler(req, res);
+};
