@@ -4828,8 +4828,7 @@ Kembali ke Pricing
                 <button type="button" id="konsDeleteAllBtn" onclick="window._konsDeleteForEveryone()"><i class="fas fa-trash-can"></i> Hapus untuk semua</button>
                 <button type="button" onclick="window._konsCloseMsgMenu()">Batal</button>
             </div>
-            <input type="text" id="konsReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._konsSetReaction(this.value.trim());this.value='';this.blur();}">
-        </div>
+            </div>
 
             <!-- Chat: satu pintu untuk Konseling (chat dengan admin) dan Chat Global -->
             <div class="ann-overlay chathub-overlay" id="chatHubOverlay">
@@ -4885,8 +4884,16 @@ Kembali ke Pricing
 </div>
 </div>
 <div class="gc-mention-anchor"><div class="gc-mention-pop" id="gcMentionPop" role="listbox" aria-label="Pilih akun untuk ditag"></div></div>
-<input type="text" id="gcReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._gcSetReaction(this.value.trim());this.value='';this.blur();}">
-                <div class="kons-reply-bar" id="gcReplyBar">
+<div class="kons-react-picker" id="gcReactPicker">
+        <button type="button" onclick="window._gcSetReaction('\u{1F44D}')">&#128077;</button>
+        <button type="button" onclick="window._gcSetReaction('\u{2764}\u{FE0F}')">&#10084;&#65039;</button>
+        <button type="button" onclick="window._gcSetReaction('\u{1F602}')">&#128514;</button>
+        <div style="position:relative;width:52px;height:52px;flex-shrink:0;">
+            <input type="text" style="width:100%;height:100%;background:var(--surface);border:2px solid var(--border);font-size:24px;color:var(--text);outline:none;text-align:center;padding:0;border-radius:0;box-shadow:none;transition:transform .15s, box-shadow .15s, border-color .15s;cursor:pointer;" placeholder="+" maxlength="12" autocomplete="off" onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='2px 2px 0 var(--primary)';" onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none';" oninput="if(this.value.trim()){window._gcSetReaction(this.value.trim());this.value='';this.blur();}">
+        </div>
+        <button type="button" class="kons-react-cancel" onclick="window._gcCloseReactPicker()">Batal</button>
+    </div>
+    <div class="kons-reply-bar" id="gcReplyBar">
 <div class="kons-reply-body"><span class="kons-reply-name"></span><span class="kons-reply-text"></span></div>
 <button type="button" class="kons-reply-x" title="Batal membalas" onclick="window._gcCancelReply()"><i class="fas fa-xmark"></i></button>
 </div>
@@ -9128,47 +9135,47 @@ return true;
 }
 
             function gcReactionsHtml(m, key) {
-                var r = m.reactions;
-                if (!r) return '';
-                var uids = Object.keys(r);
-                if (!uids.length) return '';
-                var html = '<div class="kons-reactions">';
-                var myId = myUid();
-                var escF = typeof escGc !== 'undefined' ? escGc : escAdmin;
-                uids.forEach(function(uid) {
-                    var react = r[uid];
-                    if (!react || !react.emoji) return;
-                    var isMe = (uid === myId);
-                    var name = isMe ? 'Kamu' : (react.name || 'User');
-                    var onClick = isMe ? ' style="cursor:pointer;" title="Ketuk untuk hapus" onclick="window._gcRemoveReact(\''+key+'\')"' : '';
-                    html += '<span class="kons-reaction-chip"' + onClick + '>' + escF(react.emoji) + ' <b>' + escF(name) + '</b></span>';
-                });
-                return html + '</div>';
-            }
-            window._gcOpenReactPicker = function(key) {
-                var m = _msgs[key];
-                if (!m || m.delAll) return;
-                window._gcReactKey = key;
-                var inp = document.getElementById('gcReactHiddenInput');
-                if (inp) { inp.value = ''; inp.focus(); try{showHzToast('Silakan tekan ikon Emoji di keyboard kamu');}catch(e){try{showToast('Silakan tekan ikon Emoji di keyboard kamu');}catch(e2){}} }
-            };
-            window._gcSetReaction = function(emoji) {
-                var key = window._gcReactKey;
-                var uid = myUid();
-                if (!key || !uid) return;
-                var name = 'User';
-                try { name = getGcSession().username || 'User'; } catch(e) {}
-                if (myRole() === 'admin') name = 'Hidz';
-                firebase.database().ref(GC_REF + '/' + key + '/reactions/' + uid).set({ emoji: emoji, name: name }).catch(function(){});
-                window._gcReactKey = null;
-            };
-            window._gcRemoveReact = function(key) {
-                var uid = myUid();
-                if (!key || !uid) return;
-                firebase.database().ref(GC_REF + '/' + key + '/reactions/' + uid).remove();
-            };
-        
-            window._gcSend = function () {
+        var r = m.reactions; if (!r) return '';
+        var uids = Object.keys(r); if (!uids.length) return '';
+        var html = '<div class="kons-reactions">';
+        var myId = myUid();
+        uids.forEach(function(uid) {
+            var react = r[uid]; if (!react || !react.emoji) return;
+            var isMe = (uid === myId);
+            var name = isMe ? 'Kamu' : (react.name || 'User');
+            var onClick = isMe ? ' style="cursor:pointer;" title="Ketuk untuk hapus" onclick="window._gcRemoveReact(\''+key+'\')"' : '';
+            html += '<span class="kons-reaction-chip"' + onClick + '>' + (typeof escGc !== 'undefined' ? escGc : escAdmin)(react.emoji) + ' <b>' + (typeof escGc !== 'undefined' ? escGc : escAdmin)(name) + '</b></span>';
+        });
+        return html + '</div>';
+    }
+    window._gcOpenReactPicker = function(key) {
+        var m = _msgs[key];
+        if (!m || m.delAll) return;
+        window._gcReactKey = key;
+        var picker = document.getElementById('gcReactPicker');
+        if (picker) picker.classList.add('show');
+    };
+    window._gcCloseReactPicker = function() {
+        window._gcReactKey = null;
+        var picker = document.getElementById('gcReactPicker');
+        if (picker) picker.classList.remove('show');
+    };
+    window._gcSetReaction = function(emoji) {
+        var key = window._gcReactKey;
+        var uid = myUid();
+        if (!key || !uid) return;
+        var name = 'User';
+        try { name = getGcSession().username || 'User'; } catch(e) {} if (myRole() === 'admin') name = 'Hidz';
+        firebase.database().ref(GC_REF + '/' + key + '/reactions/' + uid).set({ emoji: emoji, name: name }).catch(function(){});
+        window._gcCloseReactPicker();
+    };
+    window._gcRemoveReact = function(key) {
+        var uid = myUid();
+        if (!key || !uid) return;
+        firebase.database().ref(GC_REF + '/' + key + '/reactions/' + uid).remove();
+    };
+
+window._gcSend = function () {
 if (!canSend()) { showNotice(); return; }
 var input = document.getElementById('gcInput');
 var text = cleanText(input ? input.value : '');
