@@ -4827,10 +4827,12 @@ Kembali ke Pricing
 <button type="button" onclick="window._konsDeleteForMe()"><i class="fas fa-trash"></i> Hapus untuk saya</button>
 <button type="button" id="konsDeleteAllBtn" onclick="window._konsDeleteForEveryone()"><i class="fas fa-trash-can"></i> Hapus untuk semua</button>
 <button type="button" onclick="window._konsCloseMsgMenu()">Batal</button>
-</div>
-<input type="text" id="konsReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._konsSetReaction(this.value.trim());this.value=;this.blur();}">
-</div>
-<div class="ann-overlay chathub-overlay" id="chatHubOverlay">
+                </div>
+                <input type="text" id="konsReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._konsSetReaction(this.value.trim());this.value=;this.blur();}">
+            </div>
+
+            <!-- Chat: satu pintu untuk Konseling (chat dengan admin) dan Chat Global -->
+            <div class="ann-overlay chathub-overlay" id="chatHubOverlay">
 <div class="ann-header">
 <button class="icon-btn" title="Kembali" onclick="window.closeChatHub()">
 <i class="fas fa-arrow-left"></i>
