@@ -8364,7 +8364,7 @@ var quote = quoteOf(m, m.type === 'sticker');
 if (m.type === 'text') {
 body = '<div class="kons-bubble">' + quote + escKons(m.text).replace(/\n/g, '<br>') + '</div>';
 } else if (m.type === 'sticker') {
-body = quote + '<div class="kons-bubble sticker-bubble">' + m.text + '</div>';
+body = quote + '<div class="kons-bubble sticker-bubble">' + escKons(m.text) + '</div>';
 } else if (m.type === 'image') {
 body = '<div class="kons-bubble">' + quote + '<img class="kons-img" src="' + escKons(m.url) + '" loading="lazy" onclick="window.open(\'' + escKons(m.url) + '\',\'_blank\')">' +
 (m.text ? '<div class="kons-caption">' + escKons(m.text) + '</div>' : '') + '</div>';
