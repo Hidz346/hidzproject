@@ -4885,7 +4885,8 @@ Kembali ke Pricing
 </div>
 </div>
 <div class="gc-mention-anchor"><div class="gc-mention-pop" id="gcMentionPop" role="listbox" aria-label="Pilih akun untuk ditag"></div></div>
-<div class="kons-reply-bar" id="gcReplyBar">
+<input type="text" id="gcReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._gcSetReaction(this.value.trim());this.value='';this.blur();}">
+                <div class="kons-reply-bar" id="gcReplyBar">
 <div class="kons-reply-body"><span class="kons-reply-name"></span><span class="kons-reply-text"></span></div>
 <button type="button" class="kons-reply-x" title="Batal membalas" onclick="window._gcCancelReply()"><i class="fas fa-xmark"></i></button>
 </div>
@@ -8353,8 +8354,8 @@ if (m.delAll) {
 return '<div class="kons-row ' + rowClass + '" data-k="' + escKons(key) + '"><div class="kons-bubble-wrap">' + label +
 '<div class="kons-bubble deleted"><i class="fas fa-ban" style="margin-right:5px;"></i>Pesan ini telah dihapus</div>' +
 '<div class="kons-bubble-meta"><span class="kons-bubble-time">' + fmtTime(m.time) + '</span>' +
-'<button type="button" class="kons-bubble-more" title="Opsi" onclick="window._konsOpenMsgMenu(\'' + key + '\')"><i class="fas fa-ellipsis"></i></button>' +
-'</div></div></div>';
+((canSend() && m.delAll !== true) ? '<button type="button" class="kons-react-btn" title="Reaksi" onclick="window._gcOpenReactPicker(\'' + (typeof escGc !== 'undefined' ? escGc(k) : escAdmin(k)) + '\')"><i class="fas fa-face-smile"></i></button>' : '') + '<button type="button" class="kons-bubble-more" title="Opsi" onclick="window._konsOpenMsgMenu(\'' + key + '\')"><i class="fas fa-ellipsis"></i></button>' +
+'</div>' + gcReactionsHtml(m, k) + '</div></div>';
 }
 var body;
 var quote = quoteOf(m, m.type === 'sticker');
@@ -8381,21 +8382,21 @@ ticksHtml(m) +
 '<button type="button" class="kons-react-btn" title="Reaksi" onclick="window._konsOpenReactPicker(\'' + key + '\')"><i class="fas fa-face-smile"></i></button>' +
 '<button type="button" class="kons-bubble-more" title="Opsi" onclick="window._konsOpenMsgMenu(\'' + key + '\')"><i class="fas fa-ellipsis"></i></button>' +
 '</div>' +
-reactionsHtml(m);
+reactionsHtml(m, key);
 return '<div class="kons-row ' + rowClass + '" data-k="' + escKons(key) + '"><div class="kons-bubble-wrap">' + label + body + meta + '</div></div>';
 }
-function reactionsHtml(m) {
-var r = m.reactions;
-if (!r || (!r.admin && !r.user)) return '';
-var counts = {};
-if (r.admin) counts[r.admin] = (counts[r.admin] || 0) + 1;
-if (r.user)  counts[r.user]  = (counts[r.user]  || 0) + 1;
-var html = '<div class="kons-reactions">';
-Object.keys(counts).forEach(function (emoji) {
-html += '<span class="kons-reaction-chip">' + escKons(emoji) + (counts[emoji] > 1 ? '<b>' + counts[emoji] + '</b>' : '') + '</span>';
-});
-return html + '</div>';
-}
+function reactionsHtml(m, key) {
+                var r = m.reactions;
+                if (!r || (!r.admin && !r.user)) return '';
+                var html = '<div class="kons-reactions">';
+                if (r.admin) html += '<span class="kons-reaction-chip">' + escKons(r.admin) + ' <b>Hidz</b></span>';
+                if (r.user) html += '<span class="kons-reaction-chip" style="cursor:pointer;" onclick="window._konsRemoveReact(\''+key+'\')" title="Ketuk untuk hapus">' + escKons(r.user) + ' <b>Kamu</b></span>';
+                return html + '</div>';
+            }
+            window._konsRemoveReact = function(key) {
+                if (!_uid) return;
+                firebase.database().ref(KONS_MSG_REF + '/' + _uid + '/' + key + '/reactions/user').remove();
+            };
 function ticksHtml(m) {
 if (m.sender !== 'user') return '';
 var read = !!(_readAtAdmin && m.time <= _readAtAdmin);
@@ -8982,8 +8983,8 @@ html += (m.delAll === true)
 var canReply = canSend() && m.delAll !== true && !m._pending;
 return html + '<div class="gc-meta"><span class="gc-time">' + fmtGcTime(m.ts) + '</span>' +
 (canReply ? '<button type="button" class="kons-reply-btn" title="Balas" data-key="' + escGc(k) + '"><i class="fas fa-reply"></i></button>' : '') +
-'<button type="button" class="kons-bubble-more" title="Opsi" data-key="' + escGc(k) + '"><i class="fas fa-ellipsis"></i></button>' +
-'</div></div></div>';
+((canSend() && m.delAll !== true) ? '<button type="button" class="kons-react-btn" title="Reaksi" onclick="window._gcOpenReactPicker(\'' + (typeof escGc !== 'undefined' ? escGc(k) : escAdmin(k)) + '\')"><i class="fas fa-face-smile"></i></button>' : '') + '<button type="button" class="kons-bubble-more" title="Opsi" data-key="' + escGc(k) + '"><i class="fas fa-ellipsis"></i></button>' +
+'</div>' + gcReactionsHtml(m, k) + '</div></div>';
 }
 function render() {
 var box = document.getElementById('gcMessages');
@@ -9125,7 +9126,49 @@ delete _msgs[k];
 return true;
 });
 }
-window._gcSend = function () {
+
+            function gcReactionsHtml(m, key) {
+                var r = m.reactions;
+                if (!r) return '';
+                var uids = Object.keys(r);
+                if (!uids.length) return '';
+                var html = '<div class="kons-reactions">';
+                var myId = myUid();
+                var escF = typeof escGc !== 'undefined' ? escGc : escAdmin;
+                uids.forEach(function(uid) {
+                    var react = r[uid];
+                    if (!react || !react.emoji) return;
+                    var isMe = (uid === myId);
+                    var name = isMe ? 'Kamu' : (react.name || 'User');
+                    var onClick = isMe ? ' style="cursor:pointer;" title="Ketuk untuk hapus" onclick="window._gcRemoveReact(\''+key+'\')"' : '';
+                    html += '<span class="kons-reaction-chip"' + onClick + '>' + escF(react.emoji) + ' <b>' + escF(name) + '</b></span>';
+                });
+                return html + '</div>';
+            }
+            window._gcOpenReactPicker = function(key) {
+                var m = _msgs[key];
+                if (!m || m.delAll) return;
+                window._gcReactKey = key;
+                var inp = document.getElementById('gcReactHiddenInput');
+                if (inp) { inp.value = ''; inp.focus(); try{showHzToast('Silakan tekan ikon Emoji di keyboard kamu');}catch(e){try{showToast('Silakan tekan ikon Emoji di keyboard kamu');}catch(e2){}} }
+            };
+            window._gcSetReaction = function(emoji) {
+                var key = window._gcReactKey;
+                var uid = myUid();
+                if (!key || !uid) return;
+                var name = 'User';
+                try { name = getGcSession().username || 'User'; } catch(e) {}
+                if (myRole() === 'admin') name = 'Hidz';
+                firebase.database().ref(GC_REF + '/' + key + '/reactions/' + uid).set({ emoji: emoji, name: name }).catch(function(){});
+                window._gcReactKey = null;
+            };
+            window._gcRemoveReact = function(key) {
+                var uid = myUid();
+                if (!key || !uid) return;
+                firebase.database().ref(GC_REF + '/' + key + '/reactions/' + uid).remove();
+            };
+        
+            window._gcSend = function () {
 if (!canSend()) { showNotice(); return; }
 var input = document.getElementById('gcInput');
 var text = cleanText(input ? input.value : '');
