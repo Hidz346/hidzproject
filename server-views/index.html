@@ -5028,7 +5028,7 @@
             </div>
         </div>
 
-        <div class="app-container" id="appContainer">
+        <div class="app-container" id="appContainer" style="display:none;">
             <!-- Header -->
             <div class="header">
                 <div class="header-left">
@@ -8203,11 +8203,7 @@
                 }
                 var authReady = function () {
                     var current = firebase.auth().currentUser;
-                    if (!current || current.uid !== String(sess.id)) {
-                        forceLogout();
-                        return;
-                    }
-                    _reveal();
+                    if (!current) return; if (current.uid !== String(sess.id)) { forceLogout(); return; } _checkBanAfterAuth();
                 };
                 var unsub = firebase.auth().onAuthStateChanged(function () {
                     try { unsub && unsub(); } catch(e) {}
@@ -8218,10 +8214,7 @@
                         try { unsub && unsub(); } catch(e) {}
                         forceLogout();
                     }
-                }, 5000);
-                return;
-
-                if (sess.role === 'admin') {
+                }, 5000); function _checkBanAfterAuth() { if (sess.role === 'admin') {
                     /* Admin: cek dulu apakah device lain sudah aktif sebelum
                        halaman utama ditampilkan, supaya limit 1 device tetap
                        berlaku walau sesi ini datang dari tab yang dibuka
@@ -8271,7 +8264,7 @@
                         }
                         _reveal();
                     }, function() { _reveal(); });
-                }, function() { _reveal(); });
+                }, function() { _reveal(); }); }
             }
 
             /* ---- Auth check — dipanggil setelah cek maintenance dari Firebase selesai ---- */
@@ -12869,6 +12862,29 @@
             };
         })();
         </script>
-    </body>
-</html>
-
+    <script id="hzNextGuard">
+(function(){
+  var app=document.getElementById("appContainer"),lov=document.getElementById("loginOverlay"),gate=document.getElementById("hzGate"),mnt=document.getElementById("mntOverlay"),ban=document.getElementById("bannedOverlay");
+  function sync(){
+    if(!app)return;
+    var s=null;try{s=JSON.parse(localStorage.getItem("hidz_session")||"null");}catch(e){}
+    var ok=!!(s&&s.id&&s.username&&(!s.expiresAt||Date.now()<=s.expiresAt));
+    var lock=document.documentElement.classList.contains("hzg-lock")||(lov&&lov.style.display!=="none"&&!lov.classList.contains("hide"))||(ban&&ban.classList.contains("show"))||(mnt&&mnt.style.display==="block")||!ok;
+    if(lock){if(app.style.display!=="none")app.style.display="none";}
+    else if(app.style.display==="none"){app.style.display="flex";if(typeof buildUI==="function")buildUI();if(typeof buildHamburgerMenu==="function")buildHamburgerMenu();}
+  }
+  new MutationObserver(function(){
+    if((lov&&!document.body.contains(lov))||(gate&&document.documentElement.classList.contains("hzg-lock")&&!document.body.contains(gate))||(mnt&&!document.body.contains(mnt))||(ban&&!document.body.contains(ban))){if(app)app.innerHTML="";location.reload();return;}
+    sync();
+  }).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["style","class","hidden"]});
+  setInterval(function(){
+    sync();
+    try{
+      var s=JSON.parse(localStorage.getItem("hidz_session")||"null");
+      if(s&&s.role==="admin"&&typeof firebase!=="undefined"&&firebase.auth&&firebase.auth().currentUser){
+        firebase.auth().currentUser.getIdTokenResult(false).then(function(r){if(!r||!r.claims||r.claims.admin!==true){localStorage.removeItem("hidz_session");location.reload();}});
+      }
+    }catch(e){}
+  },3000);
+})();
+</script></body></html>

@@ -3,8 +3,8 @@
  * This endpoint validates the small alert payload, applies the application
  * security guard/rate limit, and writes with the server-side Firebase secret.
  */
-var db = require('./_lib/db');
-var securityGuard = require('./_lib/security');
+var db = require('../../lib/db');
+var securityGuard = require('../../lib/security');
 
 function clean(value, max) {
     return typeof value === 'string' ? value.slice(0, max) : '';

@@ -2,7 +2,7 @@
  * Keep them out of the security-alert stream so normal browser CSP noise
  * cannot make the administrator think an attack is happening.
  */
-var db = require('./_lib/db');
+var db = require('../../lib/db');
 
 module.exports = async function (req, res) {
     if (req.method !== 'POST') {

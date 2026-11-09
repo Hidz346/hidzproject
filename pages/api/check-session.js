@@ -1,7 +1,7 @@
-var db = require('./_lib/db');
-var securityGuard = require('./_lib/security');
-var vipCheckout = require('./_lib/project-vip-checkout');
-var globalChat = require('./_lib/global-chat');
+var db = require('../../lib/db');
+var securityGuard = require('../../lib/security');
+var vipCheckout = require('../../lib/project-vip-checkout');
+var globalChat = require('../../lib/global-chat');
 
 module.exports = async function (req, res) {
     var queryAction = (req.query && req.query.vipAction) || (req.body && req.body.vipAction) || '';

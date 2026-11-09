@@ -12,10 +12,10 @@
    access_db jadi tidak perlu lagi bisa ditulis langsung dari browser
    siapa pun. Kredensial dicocokkan ulang dulu sebelum apa pun diubah. */
 
-var db = require('./_lib/db');
-var pw = require('./_lib/password');
+var db = require('../../lib/db');
+var pw = require('../../lib/password');
 
-var securityGuard = require('./_lib/security');
+var securityGuard = require('../../lib/security');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;

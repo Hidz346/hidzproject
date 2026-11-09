@@ -2,9 +2,9 @@
    hidz_sessions/hidz_banned/hidz_blocked_devices — persis seperti yang
    dilakukan Panel VIP versi lama, cuma sekarang eksekusinya di server. */
 
-var db = require('../_lib/db');
+var db = require('../../../lib/db');
 
-var securityGuard = require('../_lib/security');
+var securityGuard = require('../../../lib/security');
 
 /* Sama seperti vip/create.js — lockout brute-force di-key pakai vipId,
    di luar rate limit umum 90 req/menit dari security.js. */

@@ -12,10 +12,10 @@
    dari project kalau mau lebih rapi — tapi dibiarkan pun tidak berbahaya
    karena tetap butuh kredensial admin & tetap idempotent. */
 
-var db = require('./_lib/db');
-var pw = require('./_lib/password');
+var db = require('../../lib/db');
+var pw = require('../../lib/password');
 
-var securityGuard = require('./_lib/security');
+var securityGuard = require('../../lib/security');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;

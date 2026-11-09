@@ -2,11 +2,11 @@
    penulisan ke database dilakukan di server supaya browser gak perlu
    download+timpa seluruh daftar akun sendiri kayak sebelumnya. */
 
-var db = require('../_lib/db');
-var pw = require('../_lib/password');
-var notifSeed = require('../_lib/notif-seed');
+var db = require('../../../lib/db');
+var pw = require('../../../lib/password');
+var notifSeed = require('../../../lib/notif-seed');
 
-var securityGuard = require('../_lib/security');
+var securityGuard = require('../../../lib/security');
 
 /* Panel VIP re-verifikasi vipId+vipUsername+vipPassword tiap request —
    tanpa lockout sendiri, itu cuma kena rate limit umum 90 req/menit

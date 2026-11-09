@@ -13,12 +13,12 @@
      localStorage browser), jadi script yang nembak endpoint ini langsung
      tanpa lewat form login sama sekali tetap kena kunci. */
 
-var db = require('./_lib/db');
-var pw = require('./_lib/password');
+var db = require('../../lib/db');
+var pw = require('../../lib/password');
 var RATE_PATH = 'hidz_login_rate_limit';
 
-var securityGuard = require('./_lib/security');
-var firebaseAuth = require('./_lib/firebase-auth');
+var securityGuard = require('../../lib/security');
+var firebaseAuth = require('../../lib/firebase-auth');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;
@@ -154,7 +154,7 @@ module.exports = async function (req, res) {
 
 /* === HIDZ_TURNSTILE_GUARD === */
 const _hzOrigLoginHandler = module.exports;
-const _hzTurnstileLib = require("./_lib/turnstile");
+const _hzTurnstileLib = require("../../lib/turnstile");
 module.exports = async function (req, res) {
     if (req.method === "POST") {
         if (await _hzTurnstileLib.handleTurnstileGateActions(req, res)) return;

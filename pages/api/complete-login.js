@@ -10,8 +10,8 @@
    dicocokkan ulang di server sebelum apa pun diubah — supaya endpoint ini
    gak bisa dipakai buat mengaktifkan akun orang lain cuma bermodal id. */
 
-var db = require('./_lib/db');
-var pw = require('./_lib/password');
+var db = require('../../lib/db');
+var pw = require('../../lib/password');
 
 /* Password sengaja TIDAK ikut dikirim balik ke browser — sama seperti
    /api/login, browser yang minta ini sudah tahu passwordnya sendiri (baru
@@ -26,7 +26,7 @@ function sanitize(u) {
     return copy;
 }
 
-var securityGuard = require('./_lib/security');
+var securityGuard = require('../../lib/security');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;

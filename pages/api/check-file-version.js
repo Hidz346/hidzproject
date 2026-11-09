@@ -19,11 +19,11 @@
    pengunjung tidak bisa memicu reset massal sendiri cuma dengan mengirim
    angka versi sembarangan. */
 
-var db = require('./_lib/db');
+var db = require('../../lib/db');
 
 var FILE_VERSION = 'HIDZ_FV_2026-07-18_01';
 
-var securityGuard = require('./_lib/security');
+var securityGuard = require('../../lib/security');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;

@@ -20,9 +20,9 @@
    api/_lib/push.js saat admin mereset password, menambah durasi,
    menyalakan maintenance, atau mengabari ada project baru. */
 
-var db = require('./_lib/db');
-var firebaseAuth = require('./_lib/firebase-auth');
-var securityGuard = require('./_lib/security');
+var db = require('../../lib/db');
+var firebaseAuth = require('../../lib/firebase-auth');
+var securityGuard = require('../../lib/security');
 
 var SUBS_PATH = 'hidz_push_subs';
 
