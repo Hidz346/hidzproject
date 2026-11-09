@@ -6,7 +6,7 @@
 html.hzg-lock { background: #000; }
 html.hzg-lock, html.hzg-lock body { overflow: hidden !important; }
 html.hzg-lock body > :not(#hzGate) { visibility: hidden !important; }
-#hzGate {
+#hzGate { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; 
 --hzg-bg: #000; --hzg-text: #fff; --hzg-muted: #b6b6b6;
 --hzg-widget: #232323; --hzg-edge: #3a3a3a; --hzg-line: #2e2e2e; --hzg-bad: #ef5350;
 position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column;
@@ -18,7 +18,7 @@ text-align: left; -webkit-text-size-adjust: 100%; user-select: none;
 #hzGate.hzg-leave { opacity: 0; pointer-events: none; transition: opacity 0.28s ease; }
 @media (prefers-color-scheme: light) {
 html.hzg-lock { background: #fff; }
-#hzGate { --hzg-bg: #fff; --hzg-text: #1d1d1d; --hzg-muted: #595959; --hzg-widget: #f7f7f7; --hzg-edge: #d9d9d9; --hzg-line: #e3e3e3; --hzg-bad: #d32f2f; }
+#hzGate { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;  --hzg-bg: #fff; --hzg-text: #1d1d1d; --hzg-muted: #595959; --hzg-widget: #f7f7f7; --hzg-edge: #d9d9d9; --hzg-line: #e3e3e3; --hzg-bad: #d32f2f; }
 }
 #hzGate .hzg-main { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; width: 100%; max-width: 640px; margin: 0 auto; padding: 32px 16px 6vh; box-sizing: border-box; }
 #hzGate .hzg-site { display: flex; align-items: center; gap: 0.5em; margin: 0 0 20px; font-size: clamp(1.3rem, 7.6vw, 2.4rem); font-weight: 700; line-height: 1.15; }
@@ -51,6 +51,7 @@ name="viewport"
 content="width=device-width, initial-scale=1.0, viewport-fit=cover"
 />
 <title>Hidz | Project</title>
+    <link rel="preload" as="image" href="https://www.gobox.my.id/file/vVUoB.png" fetchpriority="high">
 <meta name="theme-color" content="#09090f" />
 <meta
 name="description"
