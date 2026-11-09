@@ -4828,13 +4828,7 @@ Kembali ke Pricing
 <button type="button" id="konsDeleteAllBtn" onclick="window._konsDeleteForEveryone()"><i class="fas fa-trash-can"></i> Hapus untuk semua</button>
 <button type="button" onclick="window._konsCloseMsgMenu()">Batal</button>
 </div>
-<div class="kons-react-picker" id="konsReactPicker">
-<button type="button" onclick="window._konsSetReaction('\u{1F44D}')">&#128077;</button>
-<button type="button" onclick="window._konsSetReaction('\u{2764}\u{FE0F}')">&#10084;&#65039;</button>
-<button type="button" onclick="window._konsSetReaction('\u{1F602}')">&#128514;</button>
-<div style="position:relative;width:52px;height:52px;flex-shrink:0;">
-        <input type="text" id="konsReactInput" style="width:100%;height:100%;background:var(--bg);border:2px solid var(--border);font-size:22px;color:var(--text);outline:none;text-align:center;padding:0;border-radius:0;box-shadow:none;transition:all .15s;" placeholder="+" maxlength="12" autocomplete="off" onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='2px 2px 0 var(--primary)';" onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none';" oninput="if(this.value.trim()){window._konsSetReaction(this.value.trim());this.value='';}">
-    </div>
+<input type="text" id="konsReactHiddenInput" maxlength="12" style="position:fixed; top:50vh; left:50vw; opacity:0; pointer-events:none; width:1px; height:1px; z-index:-1;" autocomplete="off" oninput="if(this.value.trim()){window._konsSetReaction(this.value.trim());this.value=;this.blur();}">
 <button type="button" class="kons-react-cancel" onclick="window._konsCloseReactPicker()">Batal</button>
 </div>
 </div>
@@ -8469,12 +8463,12 @@ delAll: true, text: '', url: '', name: '', reply: null
 window._konsCloseMsgMenu();
 };
 window._konsOpenReactPicker = function (key) {
-var m = _msgs[key];
-if (!m || m.delAll) return;
-_reactKey = key;
-var picker = document.getElementById('konsReactPicker');
-if (picker) picker.classList.add('show');
-};
+                var m = _msgs[key];
+                if (!m || m.delAll) return;
+                _reactKey = key;
+                var inp = document.getElementById(konsReactHiddenInput);
+                if (inp) { inp.value = ; inp.focus(); }
+            };
 window._konsCloseReactPicker = function () {
 _reactKey = null;
 var picker = document.getElementById('konsReactPicker');
