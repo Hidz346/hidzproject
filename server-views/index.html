@@ -6825,13 +6825,16 @@ if (typeof window._hzNotifStart === 'function') {
 window._hzNotifStart(sess, { onDurationChange: _checkSessionValidity });
 }
 try {
-if (typeof firebase !== 'undefined' && firebase.apps.length) {
+/* Akun admin tidak menulis presence dari sini: status online admin diatur panel HIDZADMIN
+   (uid-nya sama), supaya tab proyek yang tersembunyi tidak menimpa atau memalsukannya */
+if (sess.role !== 'admin' && typeof firebase !== 'undefined' && firebase.apps.length) {
 var _presRef = firebase.database().ref('hidz_presence/' + userId);
+/* Online hanya kalau tab sedang tampil; tab latar belakang yang sekadar tersambung ulang tidak dihitung */
 firebase.database().ref('.info/connected').on('value', function (snap) {
 if (snap.val() !== true) return;
 _presRef.onDisconnect().set({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP })
 .then(function () {
-_presRef.set({ online: true, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+_presRef.set({ online: document.visibilityState !== 'hidden', lastSeen: firebase.database.ServerValue.TIMESTAMP });
 }).catch(function () {});
 });
 function markPresence(isOnline) {
@@ -8582,10 +8585,15 @@ if (typeof window._hidzWatchPhoto === 'function') window._hidzWatchPhoto(window.
 if (typeof window._hidzWatchPresence === 'function') window._hidzWatchPresence(window._hidzAdminUid || 'admin_hidz_protected');
 renderKonsHeaderStatus();
 ensureFb(function () {
-firebase.database().ref(KONS_META_REF + '/' + _uid + '/unreadUser').set(0)
+/* Hanya kalau percakapan sudah ada: sekadar membuka halaman Konseling tidak boleh membuat node meta kosong di admin */
+var metaRef = firebase.database().ref(KONS_META_REF + '/' + _uid);
+metaRef.child('lastAt').once('value').then(function (snap) {
+if (!snap.exists()) return;
+metaRef.child('unreadUser').set(0)
 .catch(function (err) { console.error('[Konseling] gagal reset unreadUser', err); });
-firebase.database().ref(KONS_META_REF + '/' + _uid + '/readAtUser').set(Date.now())
+metaRef.child('readAtUser').set(Date.now())
 .catch(function (err) { console.error('[Konseling] gagal update status baca', err); });
+}).catch(function (err) { console.error('[Konseling] gagal cek percakapan', err); });
 });
 window._konsUnread = false;
 if (typeof window._refreshChatUnread === 'function') window._refreshChatUnread();
