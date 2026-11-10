@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { injectSiteKey } from '../lib/turnstile';
 
 let indexHtml = null, paketHtml = null;
 export async function getServerSideProps({ params, res }) {
@@ -11,7 +12,7 @@ export async function getServerSideProps({ params, res }) {
   }
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-  res.write(isPaket ? paketHtml : indexHtml);
+  res.write(isPaket ? paketHtml : injectSiteKey(indexHtml));
   res.end();
   return { props: {} };
 }
