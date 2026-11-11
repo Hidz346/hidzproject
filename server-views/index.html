@@ -54,6 +54,16 @@ document.head.appendChild(l);
 })();
 </script>
 <script>
+/* Nilai dinamis untuk handler inline (onclick="fn(...)"): dijadikan literal string JS lalu di-escape HTML,
+   supaya tanda kutip atau backslash di dalam id/key dari database tidak bisa keluar dari argumennya. */
+window.hzArg = function (v) {
+return JSON.stringify(String(v == null ? "" : v))
+.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+};
+/* Tautan dari data pesan hanya boleh http(s), bukan javascript: atau skema lain */
+window.hzSafeUrl = function (u) { return /^https?:\/\//i.test(String(u || "")) ? String(u) : ""; };
+</script>
+<script>
 (function () {
 try {
 var s = JSON.parse(localStorage.getItem("hidz_session") || "null");
@@ -5100,11 +5110,11 @@ let html = '<div class="project-summary">' +
 '</div>' +
 '<div class="project-category-scroll" aria-label="Kategori project">' +
 '<button type="button" class="project-category-btn ' + (activeProjectCategory === "Semua" ? "active" : "") +
-'" onclick="window.filterProjectCategory(\'Semua\', \'' + pageId + '\')">Semua<span class="project-category-count">' + allCount + '</span></button>';
+'" onclick="window.filterProjectCategory(\'Semua\', ' + window.hzArg(pageId) + ')">Semua<span class="project-category-count">' + allCount + '</span></button>';
 categories.forEach(category => {
 html += '<button type="button" class="project-category-btn ' +
 (activeProjectCategory === category ? "active" : "") +
-'" onclick="window.filterProjectCategory(\'' + category.replace(/'/g, "\\'") + '\', \'' + pageId + '\')">' +
+'" onclick="window.filterProjectCategory(' + window.hzArg(category) + ', ' + window.hzArg(pageId) + ')">' +
 category + '<span class="project-category-count">' + counts[category] + '</span></button>';
 });
 html += '</div>';
@@ -7861,7 +7871,7 @@ var it = _feedData[key];
 var isNew = (it.createdAt || 0) > lastSeen;
 var excerpt = String(it.content || '').replace(/\s+/g, ' ').trim();
 html +=
-'<div class="ann-item' + (isNew ? ' is-new' : '') + '" onclick="window._annOpenDetail(\'' + key + '\')">' +
+'<div class="ann-item' + (isNew ? ' is-new' : '') + '" onclick="window._annOpenDetail(' + window.hzArg(key) + ')">' +
 '<div class="ann-item-dot"></div>' +
 '<div style="flex:1;min-width:0;">' +
 '<div class="ann-item-title">' + escAnn(it.title) + (isNew ? '<span class="ann-item-new-chip">Baru</span>' : '') + '</div>' +
@@ -8411,7 +8421,7 @@ if (m.delAll) {
 return '<div class="kons-row ' + rowClass + '" data-k="' + escKons(key) + '"><div class="kons-bubble-wrap">' + label +
 '<div class="kons-bubble deleted"><i class="fas fa-ban" style="margin-right:5px;"></i>Pesan ini telah dihapus</div>' +
 '<div class="kons-bubble-meta"><span class="kons-bubble-time">' + fmtTime(m.time) + '</span>' +
-'<button type="button" class="kons-bubble-more" title="Opsi" onclick="window._konsOpenMsgMenu(\'' + key + '\')"><i class="fas fa-ellipsis"></i></button>' +
+'<button type="button" class="kons-bubble-more" title="Opsi" onclick="window._konsOpenMsgMenu(' + window.hzArg(key) + ')"><i class="fas fa-ellipsis"></i></button>' +
 '</div></div></div>';
 }
 var body;
@@ -8421,13 +8431,13 @@ body = '<div class="kons-bubble">' + quote + escKons(m.text).replace(/\n/g, '<br
 } else if (m.type === 'sticker') {
 body = quote + '<div class="kons-bubble sticker-bubble">' + escKons(m.text) + '</div>';
 } else if (m.type === 'image') {
-body = '<div class="kons-bubble">' + quote + '<img class="kons-img" src="' + escKons(m.url) + '" loading="lazy" onclick="window.open(\'' + escKons(m.url) + '\',\'_blank\')">' +
+body = '<div class="kons-bubble">' + quote + '<img class="kons-img" src="' + escKons(window.hzSafeUrl(m.url)) + '" loading="lazy" onclick="window.open(' + window.hzArg(window.hzSafeUrl(m.url)) + ',\'_blank\')">' +
 (m.text ? '<div class="kons-caption">' + escKons(m.text) + '</div>' : '') + '</div>';
 } else if (m.type === 'video') {
-body = '<div class="kons-bubble">' + quote + '<video class="kons-video" src="' + escKons(m.url) + '" controls playsinline></video>' +
+body = '<div class="kons-bubble">' + quote + '<video class="kons-video" src="' + escKons(window.hzSafeUrl(m.url)) + '" controls playsinline></video>' +
 (m.text ? '<div class="kons-caption">' + escKons(m.text) + '</div>' : '') + '</div>';
 } else {
-body = '<div class="kons-bubble">' + quote + '<a class="kons-file-card" href="' + escKons(m.url) + '" target="_blank" rel="noopener">' +
+body = '<div class="kons-bubble">' + quote + '<a class="kons-file-card" href="' + escKons(window.hzSafeUrl(m.url)) + '" target="_blank" rel="noopener">' +
 '<div class="kons-file-ico"><i class="fas ' + fileIcon(m.name) + '"></i></div>' +
 '<div class="kons-file-info"><div class="kons-file-name">' + escKons(m.name || 'File') + '</div><div class="kons-file-size">' + fmtSize(m.size) + '</div></div>' +
 '</a></div>';
@@ -8435,9 +8445,9 @@ body = '<div class="kons-bubble">' + quote + '<a class="kons-file-card" href="' 
 var meta = '<div class="kons-bubble-meta">' +
 '<span class="kons-bubble-time">' + fmtTime(m.time) + '</span>' +
 ticksHtml(m) +
-'<button type="button" class="kons-reply-btn" title="Balas" onclick="window._konsReplyTo(\'' + key + '\')"><i class="fas fa-reply"></i></button>' +
-'<button type="button" class="kons-react-btn" title="Reaksi" onclick="window._konsOpenReactPicker(\'' + key + '\')"><i class="fas fa-face-smile"></i></button>' +
-'<button type="button" class="kons-bubble-more" title="Opsi" onclick="window._konsOpenMsgMenu(\'' + key + '\')"><i class="fas fa-ellipsis"></i></button>' +
+'<button type="button" class="kons-reply-btn" title="Balas" onclick="window._konsReplyTo(' + window.hzArg(key) + ')"><i class="fas fa-reply"></i></button>' +
+'<button type="button" class="kons-react-btn" title="Reaksi" onclick="window._konsOpenReactPicker(' + window.hzArg(key) + ')"><i class="fas fa-face-smile"></i></button>' +
+'<button type="button" class="kons-bubble-more" title="Opsi" onclick="window._konsOpenMsgMenu(' + window.hzArg(key) + ')"><i class="fas fa-ellipsis"></i></button>' +
 '</div>' +
 reactionsHtml(m, key);
 return '<div class="kons-row ' + rowClass + '" data-k="' + escKons(key) + '"><div class="kons-bubble-wrap">' + label + body + meta + '</div></div>';
@@ -8447,7 +8457,7 @@ function reactionsHtml(m, key) {
                 if (!r || (!r.admin && !r.user)) return '';
                 var html = '<div class="kons-reactions">';
                 if (r.admin) html += '<span class="kons-reaction-chip">' + escKons(r.admin) + ' <b>Hidz</b></span>';
-                if (r.user) html += '<span class="kons-reaction-chip" style="cursor:pointer;" onclick="window._konsRemoveReact(\''+key+'\')" title="Ketuk untuk hapus">' + escKons(r.user) + ' <b>Kamu</b></span>';
+                if (r.user) html += '<span class="kons-reaction-chip" style="cursor:pointer;" onclick="window._konsRemoveReact(' + window.hzArg(key) + ')" title="Ketuk untuk hapus">' + escKons(r.user) + ' <b>Kamu</b></span>';
                 return html + '</div>';
             }
             window._konsRemoveReact = function(key) {
@@ -9047,7 +9057,7 @@ html += (m.delAll === true)
 var canReply = canSend() && m.delAll !== true && !m._pending;
 return html + '<div class="gc-meta"><span class="gc-time">' + fmtGcTime(m.ts) + '</span>' +
 (canReply ? '<button type="button" class="kons-reply-btn" title="Balas" data-key="' + escGc(k) + '"><i class="fas fa-reply"></i></button>' : '') +
-((canSend() && m.delAll !== true) ? '<button type="button" class="kons-react-btn" title="Reaksi" onclick="window._gcOpenReactPicker(\'' + (typeof escGc !== 'undefined' ? escGc(k) : escAdmin(k)) + '\')"><i class="fas fa-face-smile"></i></button>' : '') + '<button type="button" class="kons-bubble-more" title="Opsi" data-key="' + escGc(k) + '"><i class="fas fa-ellipsis"></i></button>' +
+((canSend() && m.delAll !== true) ? '<button type="button" class="kons-react-btn" title="Reaksi" onclick="window._gcOpenReactPicker(' + window.hzArg(k) + ')"><i class="fas fa-face-smile"></i></button>' : '') + '<button type="button" class="kons-bubble-more" title="Opsi" data-key="' + escGc(k) + '"><i class="fas fa-ellipsis"></i></button>' +
 '</div>' + gcReactionsHtml(m, k) + '</div></div>';
 }
 function render() {
@@ -9200,7 +9210,7 @@ return true;
             var react = r[uid]; if (!react || !react.emoji) return;
             var isMe = (uid === myId);
             var name = isMe ? 'Kamu' : (react.name || 'User');
-            var onClick = isMe ? ' style="cursor:pointer;" title="Ketuk untuk hapus" onclick="window._gcRemoveReact(\''+key+'\')"' : '';
+            var onClick = isMe ? ' style="cursor:pointer;" title="Ketuk untuk hapus" onclick="window._gcRemoveReact(' + window.hzArg(key) + ')"' : '';
             html += '<span class="kons-reaction-chip"' + onClick + '>' + (typeof escGc !== 'undefined' ? escGc : escAdmin)(react.emoji) + ' <b>' + (typeof escGc !== 'undefined' ? escGc : escAdmin)(name) + '</b></span>';
         });
         return html + '</div>';
@@ -9903,7 +9913,7 @@ var creatorDisp = creatorName.toLowerCase() === (_vipMe.username || '').toLowerC
 html +=
 '<div class="vip-user-card ' + stCls + '">' +
 '<div class="vip-card-actions">' +
-'<button type="button" class="vip-mini-btn del" onclick="window._vipRequestDelete(\'' + u.id + '\')" title="Hapus"><i class="fas fa-trash"></i></button>' +
+'<button type="button" class="vip-mini-btn del" onclick="window._vipRequestDelete(' + window.hzArg(u.id) + ')" title="Hapus"><i class="fas fa-trash"></i></button>' +
 '</div>' +
 '<div class="vip-user-top"><span class="vip-u-name">' + escVip(u.username) + '</span><span class="vip-role-chip">USER</span></div>' +
 '<div class="vip-status-row"><span class="vip-status-chip ' + chipCls + '">' + statusTxt + '</span><span class="vip-remain">' + remain + '</span></div>' +
@@ -10478,7 +10488,7 @@ html += '<div class="prc-plan-card' + (hasV ? ' has-disc' : '') + '"><div>' +
 (hasV ? '<span class="card-new-badge" style="position:static;background:#22c55e;color:#fff;">-' + esc(vp.percent) + '%</span>' : '') + '</div>' +
 '<div class="prc-plan-name">' + esc(p.label) + '</div><div class="prc-plan-desc">Masa aktif ' + esc(p.days) + ' hari penuh</div><div style="margin-top:8px;">' +
 (hasV ? '<div class="prc-price-old">' + fmtRp(p.price) + '</div>' : '') + '<div class="prc-price-now">' + fmtRp(fp) + '</div></div></div>' +
-'<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;"' + (_planBusyId ? ' disabled' : ' onclick="window.selectVipPlan(\'' + p.id + '\')"')) + '>' +
+'<button type="button" class="btn-action primary" ' + (isAdmin ? 'disabled style="width:100%;padding:10px;font-size:11px;opacity:0.45;"' : 'style="width:100%;padding:10px;font-size:12px;"' + (_planBusyId ? ' disabled' : ' onclick="window.selectVipPlan(' + window.hzArg(p.id) + ')"')) + '>' +
 (isAdmin ? 'Khusus User/VIP' : (_planBusyId === p.id ? '<i class="fas fa-spinner fa-spin"></i> MEMUAT' : 'Pilih Paket')) + '</button></div>';
 });
 grid.innerHTML = html;
