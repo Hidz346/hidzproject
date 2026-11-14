@@ -5974,8 +5974,10 @@ const _githubOn = !!(_authOv && _authOv.getAttribute('data-github-client'));
 const _identityRow = (label, icon, text) => '<div class="info-row"><span class="info-key">' + label + '</span><span class="info-val" style="display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0;"><i class="' + icon + '"></i><span style="overflow-wrap:anywhere;">' + window.hzEsc(text) + '</span></span></div>';
 const _textRow = (label, text) => '<div class="info-row"><span class="info-key">' + label + '</span><span class="info-val">' + text + '</span></div>';
 const _loginRow = _guest ? _textRow('Login', 'Belum login') : (_sess.sso === true ? _textRow('Password', 'Dibuat saat mendaftar') : _pwRowHtml);
-const _canLinkGoogle = !_guest && _googleOn && !_sess.googleEmail;
-const _canLinkGithub = !_guest && _githubOn && !_sess.githubLogin;
+/* Akun admin tidak boleh punya jalur masuk lewat Google/GitHub (server menolaknya), jadi tawarannya disembunyikan. */
+const _canLink = !_guest && _sess.role !== 'admin';
+const _canLinkGoogle = _canLink && _googleOn && !_sess.googleEmail;
+const _canLinkGithub = _canLink && _githubOn && !_sess.githubLogin;
 const _googleRow = (_sess.googleEmail ? _identityRow('Google', 'fab fa-google', _sess.googleEmail) : '') +
 (_sess.githubLogin ? _identityRow('GitHub', 'fab fa-github', _sess.githubLogin) : '') +
 ((_canLinkGoogle || _canLinkGithub)
@@ -8214,6 +8216,7 @@ var why = res && res.reason;
 _toast(why === 'identity_taken' ? 'Akun ini sudah terhubung ke akun HIDZPROJECT lain'
 : why === 'already_linked' ? 'Akun HIDZPROJECT ini sudah terhubung ke akun yang berbeda'
 : why === 'identity_invalid' ? 'Verifikasi gagal, coba lagi'
+: why === 'auth_required' ? 'Sesi login tidak valid. Keluar lalu masuk lagi, kemudian coba lagi'
 : 'Gagal menghubungkan akun, coba lagi');
 });
 }
