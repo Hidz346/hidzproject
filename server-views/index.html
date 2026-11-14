@@ -62,15 +62,20 @@ return JSON.stringify(String(v == null ? "" : v))
 };
 /* Tautan dari data pesan hanya boleh http(s), bukan javascript: atau skema lain */
 window.hzSafeUrl = function (u) { return /^https?:\/\//i.test(String(u || "")) ? String(u) : ""; };
+/* Teks dari luar (mis. email Google) yang disisipkan ke innerHTML */
+window.hzEsc = function (v) {
+return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; });
+};
 </script>
 <script>
 (function () {
+var root = document.documentElement, ok = false;
 try {
 var s = JSON.parse(localStorage.getItem("hidz_session") || "null");
-if (s && s.username && (!s.expiresAt || Date.now() <= s.expiresAt)) {
-document.documentElement.classList.add("hz-has-session");
-}
+ok = !!(s && s.username && (!s.expiresAt || Date.now() <= s.expiresAt));
 } catch (e) {}
+root.classList.add(ok ? "hz-has-session" : "hz-guest");
+try { if (!ok && sessionStorage.getItem("hz_browse") === "1") root.classList.add("hz-browse"); } catch (e) {}
 })();
 </script>
 <meta
@@ -1666,175 +1671,454 @@ opacity: 1;
 transform: translateY(0) scale(1);
 }
 }
-#loginOverlay {
+/* ===== HALAMAN AWAL & MASUK =====
+Pengunjung yang belum login melihat halaman sambutan (#hzLanding). Tombol SIGN IN membuka kartu masuk
+(#loginOverlay) berisi Google, GitHub, dan username & password, jadi halaman awal tetap ringkas. */
+#hzLanding, #loginOverlay, #hzCredBanner {
+--au-bg: #09090d;
+--au-card: #111118;
+--au-line: rgba(255,255,255,0.09);
+--au-text: #f2efe8;
+--au-muted: #9b98a6;
+--au-dim: #6d6b79;
+--au-accent: #3b6df0;
+--au-accent-hi: #5a85ff;
+--au-ok: #34c38f;
+--au-warn: #e6b450;
+--au-bad: #ef6b73;
+}
+html.hz-has-session #hzLanding,
+html.hz-browse #hzLanding { display: none; }
+#hzLanding {
 position: fixed;
 inset: 0;
-background: #09090f;
-z-index: 99999;
+z-index: 99990;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+padding: 32px 24px calc(64px + env(safe-area-inset-bottom));
+background: radial-gradient(120% 60% at 50% 0%, rgba(59,109,240,0.12), transparent 62%), var(--au-bg);
+color: var(--au-text);
+text-align: center;
+overflow: hidden;
+}
+#hzLanding::after {
+content: 'H';
+position: absolute;
+right: -8vw;
+bottom: -16vh;
+font: 800 80vh/1 'Space Grotesk', sans-serif;
+color: rgba(255,255,255,0.025);
+pointer-events: none;
+}
+.hzl-mark {
+position: relative;
+width: 96px;
+height: 96px;
+margin-bottom: 36px;
+border: 2px solid var(--au-text);
+border-radius: 50%;
 display: flex;
 align-items: center;
 justify-content: center;
-padding: 24px;
-transition: opacity 0.45s ease;
+}
+.hzl-mark img { width: 66px; height: 66px; border-radius: 50%; object-fit: cover; }
+.hzl-mark::after {
+content: '';
+position: absolute;
+top: 3px;
+right: 3px;
+width: 11px;
+height: 11px;
+border-radius: 50%;
+background: var(--au-accent);
+}
+.hzl-name {
+margin: 0 0 14px;
+padding-left: 0.5em;
+font: 700 clamp(18px, 5.6vw, 25px)/1 'JetBrains Mono', 'Space Grotesk', monospace;
+letter-spacing: 0.5em;
+}
+.hzl-sub {
+margin: 0;
+padding-left: 0.3em;
+font: 500 11px/1.4 'JetBrains Mono', 'Space Grotesk', monospace;
+letter-spacing: 0.3em;
+text-transform: uppercase;
+color: var(--au-muted);
+}
+.hzl-quote {
+margin: 52px 0;
+font: italic 400 clamp(27px, 8vw, 36px)/1.2 'Cormorant Garamond', Georgia, serif;
+color: #dcd8cf;
+}
+.hzl-actions { width: 100%; max-width: 380px; }
+.hzl-signin {
+width: 100%;
+height: 56px;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 12px;
+border: 0;
+border-radius: 18px;
+background: var(--au-accent);
+color: #fff;
+font: 700 15px 'Space Grotesk', sans-serif;
+letter-spacing: 0.06em;
+cursor: pointer;
+box-shadow: 0 10px 30px rgba(59,109,240,0.28);
+transition: transform 0.15s ease, background 0.15s ease;
+}
+.hzl-signin:hover { background: var(--au-accent-hi); }
+.hzl-signin:active { transform: scale(0.98); }
+.hzl-note {
+margin-top: 14px;
+display: flex;
+align-items: center;
+gap: 14px;
+padding: 16px 18px;
+border: 1px solid var(--au-line);
+border-radius: 18px;
+background: rgba(255,255,255,0.02);
+color: var(--au-muted);
+font: 500 13px/1.55 'Space Grotesk', sans-serif;
+text-align: center;
+}
+.hzl-note i { flex: none; font-size: 17px; color: var(--au-dim); }
+.hzl-note p { margin: 0; flex: 1; }
+.hzl-foot {
+position: absolute;
+left: 0;
+right: 0;
+bottom: calc(22px + env(safe-area-inset-bottom));
+font: 500 10px/1.6 'JetBrains Mono', 'Space Grotesk', monospace;
+letter-spacing: 0.26em;
+text-transform: uppercase;
+color: #4a4856;
+}
+.hzl-foot a { color: inherit; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.12); }
+.hzl-foot a:hover { color: var(--au-muted); }
+#loginOverlay {
+position: fixed;
+inset: 0;
+z-index: 99999;
+display: flex;
+align-items: flex-start;
+justify-content: center;
+padding: 20px;
+background: rgba(6,6,10,0.84);
+-webkit-backdrop-filter: blur(6px);
+backdrop-filter: blur(6px);
+overflow-y: auto;
+transition: opacity 0.25s ease;
 }
 #loginOverlay.hide {
 opacity: 0;
 pointer-events: none;
 }
-html.hz-has-session #loginOverlay .lc-wrap {
-display: none;
-}
 .lc-wrap {
-width: 100%;
-max-width: 360px;
-background: #13132a;
-border: 3px solid rgba(255,255,255,0.65);
-box-shadow: 7px 7px 0px rgba(255,255,255,0.18);
-overflow: hidden;
 position: relative;
+width: 100%;
+max-width: 400px;
+margin: auto;
+background: var(--au-card);
+border: 1px solid var(--au-line);
+border-radius: 22px;
+box-shadow: 0 24px 70px rgba(0,0,0,0.55);
+color: var(--au-text);
+font-family: 'Space Grotesk', sans-serif;
 }
-.lc-wrap::before {
-content: '';
+.lc-close {
 position: absolute;
-bottom: 0; left: 0; right: 0;
-height: 3px;
-background: linear-gradient(90deg,#b8ff00,#ff69b4,#00e5ff,#b8ff00);
-background-size: 200% 100%;
+top: 12px;
+right: 12px;
+width: 34px;
+height: 34px;
+border: 0;
+border-radius: 50%;
+background: transparent;
+color: var(--au-dim);
+font-size: 15px;
+cursor: pointer;
+transition: color 0.15s ease, background 0.15s ease;
 }
+.lc-close:hover { color: var(--au-text); background: rgba(255,255,255,0.06); }
+.lc-close[hidden] { display: none; }
 .lc-header {
 display: flex;
+flex-direction: column;
 align-items: center;
-gap: 14px;
-padding: 20px 20px 16px;
-border-bottom: 2px solid rgba(255,255,255,0.07);
+gap: 12px;
+padding: 28px 24px 0;
 }
-.lc-logo {
-width: 58px; height: 58px;
-border: 3px solid rgba(0,229,255,0.55);
-box-shadow: 3px 3px 0px rgba(0,229,255,0.25);
-object-fit: cover;
-flex-shrink: 0;
-}
+.lc-logo { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; }
 .lc-app-name {
-font-family: 'Orbitron', sans-serif;
-font-size: 18px;
-font-weight: 900;
-color: #ffffff;
-letter-spacing: -0.3px;
-}
-.lc-app-sub {
-font-size: 10px;
-font-weight: 700;
-color: rgba(0,229,255,0.75);
+padding-left: 0.32em;
+font: 700 12px/1 'JetBrains Mono', 'Space Grotesk', monospace;
+letter-spacing: 0.32em;
 text-transform: uppercase;
-letter-spacing: 1.5px;
-margin-top: 3px;
 }
-.lc-body { padding: 20px; }
+.lc-body { padding: 22px 24px 26px; }
+.lc-view[hidden] { display: none; }
+.lc-title { margin: 0 0 6px; font: 700 21px/1.25 'Space Grotesk', sans-serif; text-align: center; }
+.lc-lead {
+margin: 0 0 18px;
+font: 500 13px/1.6 'Space Grotesk', sans-serif;
+color: var(--au-muted);
+text-align: center;
+}
+.lc-lead b { color: var(--au-text); font-weight: 700; overflow-wrap: anywhere; }
+.lc-prov { display: flex; flex-direction: column; gap: 10px; }
+.lc-prov [hidden] { display: none; }
+.lc-gsi { min-height: 44px; display: flex; justify-content: center; }
+.lc-gh {
+width: 100%;
+height: 44px;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 10px;
+border: 1px solid rgba(255,255,255,0.18);
+border-radius: 999px;
+background: #0b0b0f;
+color: #fff;
+font: 600 14px 'Space Grotesk', sans-serif;
+cursor: pointer;
+transition: background 0.15s ease, opacity 0.15s ease;
+}
+.lc-gh i { font-size: 18px; }
+.lc-gh:hover { background: #17171e; }
+.lc-gh:disabled { opacity: 0.55; cursor: default; }
+.lc-prov-off { margin: 0; font: 600 12px/1.6 'Space Grotesk', sans-serif; text-align: center; color: var(--au-dim); }
+.lc-or {
+display: flex;
+align-items: center;
+gap: 12px;
+margin: 18px 0;
+font: 700 10px 'JetBrains Mono', 'Space Grotesk', monospace;
+letter-spacing: 0.14em;
+text-transform: uppercase;
+color: var(--au-dim);
+}
+.lc-or::before, .lc-or::after { content: ''; flex: 1; height: 1px; background: var(--au-line); }
 .lc-field-label {
-font-size: 11px;
-font-weight: 800;
-color: rgba(255,255,255,0.42);
+display: block;
+margin-bottom: 7px;
+font: 700 11px 'Space Grotesk', sans-serif;
+letter-spacing: 0.1em;
 text-transform: uppercase;
-letter-spacing: 1px;
-margin-bottom: 6px;
+color: var(--au-muted);
 }
+.lc-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.lc-label-row .lc-field-label { margin-bottom: 7px; }
 .lc-input {
 width: 100%;
-padding: 12px 14px;
-background: rgba(255,255,255,0.05);
-border: 2.5px solid rgba(255,255,255,0.18);
-box-shadow: 3px 3px 0px rgba(255,255,255,0.07);
-color: #ffffff;
-font-family: 'Space Grotesk', sans-serif;
-font-size: 14px;
-font-weight: 600;
-outline: none;
+height: 46px;
+padding: 0 14px;
 margin-bottom: 14px;
-transition: border-color 0.15s, box-shadow 0.15s;
-border-radius: 0;
+background: rgba(255,255,255,0.04);
+border: 1px solid var(--au-line);
+border-radius: 12px;
+color: var(--au-text);
+font: 500 14px 'Space Grotesk', sans-serif;
+outline: none;
+transition: border-color 0.15s ease, background 0.15s ease;
 -webkit-user-select: auto !important;
 user-select: auto !important;
 }
-.lc-input:focus {
-border-color: rgba(0,229,255,0.65);
-box-shadow: 3px 3px 0px rgba(0,229,255,0.25);
-}
-.lc-input::placeholder { color: rgba(255,255,255,0.2); }
+.lc-input:focus { border-color: var(--au-accent); background: rgba(59,109,240,0.06); }
+.lc-input::placeholder { color: var(--au-dim); }
+.lc-hint { margin: -8px 0 14px; font: 500 11px/1.5 'Space Grotesk', sans-serif; color: var(--au-dim); }
 .lc-pw-wrap { position: relative; margin-bottom: 14px; }
-.lc-pw-wrap .lc-input { margin-bottom: 0; padding-right: 42px; }
+.lc-pw-wrap .lc-input { margin-bottom: 0; padding-right: 44px; }
 .lc-pw-toggle {
-position: absolute; right: 12px; top: 50%;
-transform: translateY(-50%);
-background: none; border: none;
-color: rgba(255,255,255,0.42);
-cursor: pointer; font-size: 14px;
-padding: 4px; line-height: 1;
-transition: color 0.15s;
+position: absolute;
+right: 4px;
+top: 0;
+width: 42px;
+height: 46px;
+border: 0;
+background: none;
+color: var(--au-dim);
+font-size: 14px;
+cursor: pointer;
+transition: color 0.15s ease;
 }
-.lc-pw-toggle:active { color: #00e5ff; }
+.lc-pw-toggle:hover { color: var(--au-text); }
 .lc-btn-login {
 width: 100%;
-padding: 14px;
-background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-border: 3px solid rgba(255,255,255,0.45);
-box-shadow: 5px 5px 0px rgba(255,255,255,0.12);
-color: #ffffff;
-font-family: 'Space Grotesk', sans-serif;
-font-size: 14px;
-font-weight: 900;
-text-transform: uppercase;
-letter-spacing: 1.5px;
+height: 48px;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 8px;
+border: 0;
+border-radius: 14px;
+background: var(--au-accent);
+color: #fff;
+font: 700 14px 'Space Grotesk', sans-serif;
+letter-spacing: 0.08em;
 cursor: pointer;
-transition: transform 0.15s, box-shadow 0.15s;
-position: relative;
-overflow: hidden;
+transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
-.lc-btn-login::before {
-content: '';
-position: absolute;
-top: 0; left: -100%;
-width: 100%; height: 100%;
-background: linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);
-}
-.lc-btn-login:active {
-transform: translate(4px,4px);
-box-shadow: 1px 1px 0px rgba(255,255,255,0.08);
-}
-.lc-btn-login:disabled {
-opacity: 0.75;
-cursor: default;
-}
-.lc-btn-login:disabled:active {
-transform: none;
-box-shadow: 5px 5px 0px rgba(255,255,255,0.12);
-}
-.lc-register-link {
-text-align: center;
+.lc-btn-login:hover { background: var(--au-accent-hi); }
+.lc-btn-login:active { transform: scale(0.985); }
+.lc-btn-login:disabled { opacity: 0.7; cursor: default; transform: none; }
+.lc-switch { margin: 16px 0 0; text-align: center; font: 500 13px/1.5 'Space Grotesk', sans-serif; color: var(--au-dim); }
+.lc-switch + .lc-switch { margin-top: 8px; }
+.lc-guest {
+width: 100%;
+height: 44px;
 margin-top: 14px;
-font-size: 13px;
-color: rgba(255,255,255,0.38);
-font-weight: 600;
-}
-.lc-register-link span,
-.lc-register-link a {
-color: #3b82f6;
-font-weight: 800;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 8px;
+border: 1px solid var(--au-line);
+border-radius: 999px;
+background: transparent;
+color: var(--au-text);
+font: 600 13px 'Space Grotesk', sans-serif;
 cursor: pointer;
-text-decoration: underline;
-text-underline-offset: 3px;
+transition: background 0.15s ease, border-color 0.15s ease;
 }
-.lc-register-link + .lc-register-link { margin-top: 8px; }
-.lc-error {
-background: rgba(239,68,68,0.1);
-border: 2px solid #ef4444;
-color: #fca5a5;
-font-size: 12px;
+.lc-guest:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.18); }
+.lc-guest i { font-size: 14px; color: var(--au-muted); }
+.lc-guest-note { margin: 8px 6px 0; text-align: center; font: 500 11.5px/1.5 'Space Grotesk', sans-serif; color: var(--au-dim); }
+.lc-switch button, .lc-switch a, .lc-link {
+padding: 0;
+border: 0;
+background: none;
+color: var(--au-accent-hi);
+font: inherit;
 font-weight: 700;
-padding: 9px 12px;
-margin-bottom: 12px;
-display: none;
+cursor: pointer;
+text-decoration: none;
 }
+.lc-switch button:hover, .lc-switch a:hover, .lc-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lc-link { font-size: 12px; font-weight: 600; }
+.lc-chip {
+display: flex;
+align-items: center;
+gap: 10px;
+margin-bottom: 16px;
+padding: 11px 14px;
+border: 1px solid rgba(52,195,143,0.35);
+border-radius: 12px;
+background: rgba(52,195,143,0.07);
+font: 600 13px/1.4 'Space Grotesk', sans-serif;
+overflow-wrap: anywhere;
+}
+.lc-chip i { color: var(--au-ok); }
+.lc-steps { margin: 18px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.lc-steps li { display: flex; align-items: center; gap: 12px; font: 500 13px/1.45 'Space Grotesk', sans-serif; color: var(--au-muted); }
+.lc-steps b {
+flex: none;
+width: 24px;
+height: 24px;
+display: flex;
+align-items: center;
+justify-content: center;
+border: 1px solid var(--au-line);
+border-radius: 50%;
+font: 700 11px 'JetBrains Mono', monospace;
+color: var(--au-text);
+}
+.lc-error {
+display: none;
+margin-bottom: 14px;
+padding: 10px 12px;
+border: 1px solid rgba(239,107,115,0.4);
+border-radius: 12px;
+background: rgba(239,107,115,0.08);
+color: #f4a3a8;
+font: 600 12px/1.5 'Space Grotesk', sans-serif;
+}
+.lc-note { margin-bottom: 16px; padding: 11px 14px; border-radius: 12px; font: 600 12px/1.55 'Space Grotesk', sans-serif; }
+.lc-note[hidden] { display: none; }
+.lc-note[data-st="pending"], .lc-req[data-st="pending"] { border-color: rgba(230,180,80,0.4); background: rgba(230,180,80,0.07); }
+.lc-note[data-st="approved"], .lc-req[data-st="approved"] { border-color: rgba(52,195,143,0.4); background: rgba(52,195,143,0.07); }
+.lc-note[data-st="rejected"], .lc-req[data-st="rejected"] { border-color: rgba(239,107,115,0.4); background: rgba(239,107,115,0.07); }
+.lc-note { border: 1px solid var(--au-line); }
+.lc-reqs { display: flex; flex-direction: column; gap: 10px; }
+.lc-req { position: relative; padding: 12px 14px; border: 1px solid var(--au-line); border-radius: 14px; font: 500 12px/1.55 'Space Grotesk', sans-serif; color: var(--au-muted); }
+.lc-req-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font: 700 13px 'Space Grotesk', sans-serif; color: var(--au-text); }
+.lc-req-head span { overflow-wrap: anywhere; }
+.lc-req-badge { margin-left: auto; flex: none; padding: 2px 8px; border-radius: 999px; font: 700 10px 'JetBrains Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+.lc-req[data-st="pending"] .lc-req-badge { color: var(--au-warn); background: rgba(230,180,80,0.14); }
+.lc-req[data-st="approved"] .lc-req-badge { color: var(--au-ok); background: rgba(52,195,143,0.14); }
+.lc-req[data-st="rejected"] .lc-req-badge { color: var(--au-bad); background: rgba(239,107,115,0.14); }
+.lc-req-x { margin-top: 8px; padding: 0; border: 0; background: none; color: var(--au-dim); font: 600 11px 'Space Grotesk', sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.lc-empty { margin: 0; padding: 14px 0; text-align: center; font: 500 13px 'Space Grotesk', sans-serif; color: var(--au-dim); }
+#hzCredBanner {
+position: fixed;
+top: calc(10px + env(safe-area-inset-top));
+left: 12px;
+right: 12px;
+z-index: 99996;
+display: none;
+flex-direction: column;
+gap: 8px;
+max-width: 420px;
+margin: 0 auto;
+}
+#hzCredBanner.show { display: flex; }
+.hzb-item {
+display: flex;
+align-items: center;
+gap: 10px;
+padding: 10px 12px;
+border: 1px solid var(--au-line);
+border-radius: 14px;
+background: #14141c;
+box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+color: var(--au-text);
+font: 600 12px/1.45 'Space Grotesk', sans-serif;
+cursor: pointer;
+}
+.hzb-item span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.hzb-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.hzb-item[data-st="pending"] .hzb-dot { background: var(--au-warn); }
+.hzb-item[data-st="approved"] .hzb-dot { background: var(--au-ok); }
+.hzb-item[data-st="rejected"] .hzb-dot { background: var(--au-bad); }
+.pfoto-edit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pf-gh-btn {
+width: 100%;
+height: 44px;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 8px;
+border: 0;
+border-radius: 999px;
+background: #0b0b0f;
+color: #fff;
+font: 600 13px 'Space Grotesk', sans-serif;
+cursor: pointer;
+}
+#hzAuthToast {
+--au-line: rgba(255,255,255,0.09);
+position: fixed;
+left: 50%;
+bottom: calc(28px + env(safe-area-inset-bottom));
+z-index: 100001;
+max-width: min(92vw, 380px);
+padding: 12px 16px;
+border: 1px solid var(--au-line);
+border-radius: 14px;
+background: #1a1a23;
+color: #f2efe8;
+font: 600 13px/1.45 'Space Grotesk', sans-serif;
+text-align: center;
+box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+opacity: 0;
+transform: translate(-50%, 10px);
+pointer-events: none;
+transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#hzAuthToast.show { opacity: 1; transform: translate(-50%, 0); }
 #aksesOverlay {
 position: fixed;
 inset: 0;
@@ -2908,6 +3192,7 @@ box-shadow: 3px 3px 0 var(--border);
 .hzn-icon.reset_password  { background: var(--y2k-accent); }
 .hzn-icon.duration_added  { background: var(--y2k-lime); }
 .hzn-icon.role_upgraded   { background: #fbbf24; }
+.hzn-icon.credential_request { background: var(--y2k-accent); }
 .hzn-icon.voucher_new     { background: #a78bfa; }
 .hzn-icon.maintenance     { background: #fb923c; }
 .hzn-title {
@@ -2960,6 +3245,7 @@ border: 2.5px solid var(--border);
 .hzh-ic.reset_password { background: var(--y2k-accent); }
 .hzh-ic.duration_added { background: var(--y2k-lime); }
 .hzh-ic.role_upgraded  { background: #fbbf24; }
+.hzh-ic.credential_request { background: var(--y2k-accent); }
 .hzh-ic.voucher_new    { background: #a78bfa; }
 .hzh-ic.maintenance    { background: #fb923c; }
 .hzh-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
@@ -3912,7 +4198,7 @@ document.write(
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400&display=swap" />
 </head>
 <body>
 <div id="hzGate" role="dialog" aria-modal="true" aria-labelledby="hzgTitle" data-host="hidzproject.my.id" data-sitekey="" data-verify-url="/api/login">
@@ -4459,33 +4745,117 @@ src="https://audio.jukehost.co.uk/01a18d50-31e2-71ba-b7be-01326924c3fa"
 type="audio/mpeg"
 />
 </audio>
-<div id="loginOverlay">
-<div class="lc-wrap">
-<div class="lc-header">
-<img class="lc-logo" src="https://www.gobox.my.id/file/vVUoB.png" alt="Logo" width="58" height="58">
-<div>
-<div class="lc-app-name">HidzProject</div>
-<div class="lc-app-sub">Original Version</div>
+<main id="hzLanding" aria-label="Selamat datang di HidzProject">
+<div class="hzl-mark" aria-hidden="true"><img src="https://www.gobox.my.id/file/vVUoB.png" alt="" width="66" height="66"></div>
+<h1 class="hzl-name">HIDZPROJECT</h1>
+<p class="hzl-sub">Website Project Center</p>
+<p class="hzl-quote">&ldquo;Semua project Hidz, satu pintu.&rdquo;</p>
+<div class="hzl-actions">
+<button type="button" class="hzl-signin" id="hzlSignIn"><i class="fas fa-arrow-right-to-bracket"></i>SIGN IN</button>
+<div class="hzl-note"><i class="far fa-user" aria-hidden="true"></i><p>Belum punya akun? Pilih SIGN IN, lalu daftar dengan Google atau GitHub.</p></div>
 </div>
+<div class="hzl-foot">Sistem akun teramankan &middot; <a href="/paket">Paket &amp; harga</a></div>
+</main>
+<div id="hzCredBanner" aria-live="polite"></div>
+<div id="hzAuthToast" role="status" aria-live="polite"></div>
+<div id="loginOverlay" data-google-client="" data-github-client="" style="display:none;">
+<div class="lc-wrap" role="dialog" aria-modal="true" aria-label="Masuk atau daftar">
+<button type="button" class="lc-close" id="lcClose" aria-label="Tutup"><i class="fas fa-xmark"></i></button>
+<div class="lc-header">
+<img class="lc-logo" src="https://www.gobox.my.id/file/vVUoB.png" alt="Logo" width="46" height="46">
+<div class="lc-app-name">HidzProject</div>
 </div>
 <div class="lc-body">
-<div class="lc-error" id="loginError">Username atau password salah!</div>
-<div class="lc-field-label">Username</div>
-<input type="text" class="lc-input" id="lc-username" placeholder="Enter username" autocomplete="off">
-<div class="lc-field-label">Password</div>
+<div class="lc-error" id="loginError"></div>
+<section class="lc-view" data-view="login">
+<h2 class="lc-title">Masuk ke HIDZPROJECT</h2>
+<p class="lc-lead">Pilih metode autentikasi yang kamu inginkan.</p>
+<div class="lc-prov" data-prov-box>
+<div class="lc-gsi" data-gsi hidden></div>
+<button type="button" class="lc-gh" data-gh hidden><i class="fab fa-github"></i>Lanjutkan dengan GitHub</button>
+<p class="lc-prov-off" data-prov-off hidden>Masuk lewat Google dan GitHub belum diaktifkan.</p>
+</div>
+<div class="lc-or"><span>atau masuk dengan username</span></div>
+<label class="lc-field-label" for="lc-username">Username</label>
+<input type="text" class="lc-input" id="lc-username" placeholder="Username kamu" autocomplete="username" autocapitalize="none" spellcheck="false">
+<div class="lc-label-row">
+<label class="lc-field-label" for="lc-password">Password</label>
+<button type="button" class="lc-link" data-go="recover">Lupa username / password?</button>
+</div>
 <div class="lc-pw-wrap">
-<input type="password" class="lc-input" id="lc-password" placeholder="Enter password" autocomplete="current-password">
+<input type="password" class="lc-input" id="lc-password" placeholder="Password kamu" autocomplete="current-password">
 <button type="button" class="lc-pw-toggle" onclick="window.toggleLoginPw()" title="Lihat password"><i class="fas fa-eye" id="lcPwEyeIcon"></i></button>
 </div>
-<button class="lc-btn-login" id="btnLogin">
-<i class="fas fa-arrow-right" style="margin-right:6px;"></i>LOGIN
-</button>
-<div class="lc-register-link">
-Belum punya akun? <span onclick="window.openAksesSheet()">Klik disini</span>
+<button type="button" class="lc-btn-login" id="btnLogin"><i class="fas fa-arrow-right"></i>MASUK</button>
+<p class="lc-switch">Belum punya akun? <button type="button" data-go="register">Daftar sekarang</button></p>
+<button type="button" class="lc-guest" id="lcGuest"><i class="far fa-eye"></i>Masuk sebagai Tamu</button>
+<p class="lc-guest-note">Tamu bisa melihat daftar project dan memakai Profil. Fitur lainnya terbuka setelah login.</p>
+<p class="lc-switch">Mau beli VIP? <a href="/paket">Lihat paket &amp; harga</a></p>
+</section>
+<section class="lc-view" data-view="register" hidden>
+<h2 class="lc-title">Buat Akun Baru</h2>
+<p class="lc-lead">Daftar dengan Google atau GitHub, lalu buat username dan password untuk akunmu.</p>
+<div class="lc-prov" data-prov-box>
+<div class="lc-gsi" data-gsi hidden></div>
+<button type="button" class="lc-gh" data-gh hidden><i class="fab fa-github"></i>Lanjutkan dengan GitHub</button>
+<p class="lc-prov-off" data-prov-off hidden>Pendaftaran lewat Google dan GitHub belum diaktifkan.</p>
 </div>
-<div class="lc-register-link">
-Mau beli VIP? <a href="/paket">Lihat paket &amp; harga</a>
+<ol class="lc-steps">
+<li><b>1</b><span>Verifikasi akun Google atau GitHub</span></li>
+<li><b>2</b><span>Buat username &amp; password (wajib diisi)</span></li>
+<li><b>3</b><span>Akunmu langsung tercatat dan siap dipakai</span></li>
+</ol>
+<p class="lc-switch">Sudah punya akun? <button type="button" data-go="login">Masuk sekarang</button></p>
+</section>
+<section class="lc-view" data-view="setup" hidden>
+<h2 class="lc-title">Buat Username &amp; Password</h2>
+<p class="lc-lead">Langkah terakhir. Data ini wajib diisi dan dipakai setiap kali kamu masuk lagi.</p>
+<div class="lc-chip"><i class="fas fa-circle-check"></i><span id="lcSetupLabel"></span></div>
+<label class="lc-field-label" for="lcSetupUser">Username</label>
+<input type="text" class="lc-input" id="lcSetupUser" placeholder="Pilih username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20">
+<p class="lc-hint">3-20 karakter: huruf, angka, titik, garis bawah, atau strip.</p>
+<label class="lc-field-label" for="lcSetupPass">Password</label>
+<input type="password" class="lc-input" id="lcSetupPass" placeholder="Minimal 6 karakter" autocomplete="new-password" maxlength="64">
+<label class="lc-field-label" for="lcSetupPass2">Ulangi password</label>
+<input type="password" class="lc-input" id="lcSetupPass2" placeholder="Ketik ulang password" autocomplete="new-password" maxlength="64">
+<button type="button" class="lc-btn-login lc-submit" id="lcSetupBtn"><i class="fas fa-user-plus"></i>BUAT AKUN</button>
+<p class="lc-switch"><button type="button" data-act="cancel-setup">Batalkan pendaftaran</button></p>
+</section>
+<section class="lc-view" data-view="registered" hidden>
+<h2 class="lc-title">Akunmu Sudah Terdaftar</h2>
+<p class="lc-lead" id="lcRegLead"></p>
+<div class="lc-note" id="lcRegReq" hidden></div>
+<button type="button" class="lc-btn-login" data-go="login"><i class="fas fa-arrow-right"></i>MASUK DENGAN USERNAME</button>
+<p class="lc-switch"><button type="button" data-go="recover-form">Lupa username / password?</button></p>
+</section>
+<section class="lc-view" data-view="recover" hidden>
+<h2 class="lc-title">Lupa Username / Password</h2>
+<p class="lc-lead">Buktikan kamu pemilik akunnya: verifikasi dengan Google atau GitHub yang dulu dipakai mendaftar. Data baru berlaku setelah disetujui admin.</p>
+<div class="lc-prov" data-prov-box>
+<div class="lc-gsi" data-gsi hidden></div>
+<button type="button" class="lc-gh" data-gh hidden><i class="fab fa-github"></i>Lanjutkan dengan GitHub</button>
+<p class="lc-prov-off" data-prov-off hidden>Verifikasi lewat Google dan GitHub belum diaktifkan.</p>
 </div>
+<p class="lc-switch"><button type="button" data-go="login">Kembali ke halaman masuk</button></p>
+</section>
+<section class="lc-view" data-view="recover-form" hidden>
+<h2 class="lc-title">Ajukan Data Akun Baru</h2>
+<p class="lc-lead">Akun <b id="lcRecUser"></b>. Data lama tetap berlaku sampai admin menyetujui perubahan ini.</p>
+<label class="lc-field-label" for="lcRecName">Username baru</label>
+<input type="text" class="lc-input" id="lcRecName" placeholder="Username baru" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20">
+<label class="lc-field-label" for="lcRecPass">Password baru</label>
+<input type="password" class="lc-input" id="lcRecPass" placeholder="Minimal 6 karakter" autocomplete="new-password" maxlength="64">
+<label class="lc-field-label" for="lcRecPass2">Ulangi password baru</label>
+<input type="password" class="lc-input" id="lcRecPass2" placeholder="Ketik ulang password" autocomplete="new-password" maxlength="64">
+<button type="button" class="lc-btn-login lc-submit" id="lcRecoverBtn"><i class="fas fa-paper-plane"></i>AJUKAN PERUBAHAN</button>
+<p class="lc-switch"><button type="button" data-go="login">Batal</button></p>
+</section>
+<section class="lc-view" data-view="status" hidden>
+<h2 class="lc-title">Status Permintaan</h2>
+<p class="lc-lead">Permintaan ubah data akun di perangkat ini. Diperbarui otomatis, tidak perlu memuat ulang halaman.</p>
+<div class="lc-reqs" id="lcReqList"></div>
+<p class="lc-switch"><button type="button" data-go="login">Kembali ke halaman masuk</button></p>
+</section>
 </div>
 </div>
 </div>
@@ -5076,9 +5446,12 @@ Kembali ke Pricing
 </div>
 <div class="hz-toast" id="hzToast"></div>
 </div>
+<!--HZ_GUEST_VAULT-->
 <script>
 let pages=[{id:"home",name:"Home",icon:"fas fa-home"}],projects=[],profileName="HidzProject",profileDesc="",profileImg="https://www.gobox.my.id/file/vVUoB.png";
 window._applyHidzVault=function(v){if(!v)return;var ch=JSON.stringify(projects)!==JSON.stringify(v.projects||[]);if(Array.isArray(v.pages)&&v.pages.length)pages=v.pages;if(Array.isArray(v.projects))projects=v.projects;if(v.profileName)profileName=v.profileName;if(v.profileDesc)profileDesc=v.profileDesc;if(v.profileImg)profileImg=v.profileImg;if(ch){try{rebuildUIPreserveScroll();buildHamburgerMenu();}catch(e){}}};
+/* Pengunjung yang belum login: isi halaman utama dari data yang dicetak server (tanpa alamat project). */
+(function(){var el=document.getElementById("hzGuestVault");if(!el||!document.documentElement.classList.contains("hz-guest"))return;try{var v=JSON.parse(el.textContent);if(Array.isArray(v.pages)&&v.pages.length)pages=v.pages;if(Array.isArray(v.projects))projects=v.projects;if(v.profileName)profileName=v.profileName;if(v.profileDesc)profileDesc=v.profileDesc;if(v.profileImg)profileImg=v.profileImg;}catch(e){}})();
 const HIDZ_WHATSAPP_URL = "https://wa.me/message/FGLDCRYEE3CME1";
 let activeProjectCategory = "Semua";
 function getProjectCategory(proj) {
@@ -5463,7 +5836,7 @@ let navHtml = "";
 let pagesHtml = "";
 pages.forEach(p => {
 navHtml +=
-'<button class="nav-item ' +
+'<button data-guest-ok class="nav-item ' +
 (activePageId === p.id ? "active" : "") +
 '" onclick="switchPage(\'' +
 p.id +
@@ -5578,7 +5951,7 @@ navHtml +=
 '<button class="nav-item" onclick="window.openChatHub()"><i class="fas fa-comments"></i> <span>Chat</span>' +
 '<span class="kons-nav-dot' + ((window._konsUnread || window._gcUnread > 0) ? ' show' : '') + '"></span></button>';
 navHtml +=
-'<button class="nav-item ' +
+'<button data-guest-ok class="nav-item ' +
 (activePageId === "account" ? "active" : "") +
 '" onclick="switchPage(\'account\')"><i class="fas fa-user"></i> <span>Profile</span></button>';
 const isDarkActive =
@@ -5593,9 +5966,27 @@ const _sess = (() => { try { return JSON.parse(localStorage.getItem('hidz_sessio
 const _isPwVis = !!window._pwVisible;
 const _rawPw = _sess.password || '';
 const _maskedPw = _rawPw.length > 2 ? (_rawPw[0] + '\u2022'.repeat(_rawPw.length - 2) + _rawPw.slice(-1)) : '\u2022'.repeat(_rawPw.length || 1);
+const _pwRowHtml = '<div class="info-row"><span class="info-key">Password</span><span class="info-val" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;"><span id="pwDisplayEl">' + (_isPwVis?_rawPw:_maskedPw) + '</span><button class="pw-toggle-btn" onclick="window.togglePwProfile()" title="Lihat password"><i class="fas ' + (_isPwVis?'fa-eye-slash':'fa-eye') + '" id="pwEyeIconEl"></i></button></span></div>';
+const _guest = !_sess.id;
+const _authOv = document.getElementById('loginOverlay');
+const _googleOn = !!(_authOv && _authOv.getAttribute('data-google-client'));
+const _githubOn = !!(_authOv && _authOv.getAttribute('data-github-client'));
+const _identityRow = (label, icon, text) => '<div class="info-row"><span class="info-key">' + label + '</span><span class="info-val" style="display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0;"><i class="' + icon + '"></i><span style="overflow-wrap:anywhere;">' + window.hzEsc(text) + '</span></span></div>';
+const _textRow = (label, text) => '<div class="info-row"><span class="info-key">' + label + '</span><span class="info-val">' + text + '</span></div>';
+const _loginRow = _guest ? _textRow('Login', 'Belum login') : (_sess.sso === true ? _textRow('Password', 'Dibuat saat mendaftar') : _pwRowHtml);
+const _canLinkGoogle = !_guest && _googleOn && !_sess.googleEmail;
+const _canLinkGithub = !_guest && _githubOn && !_sess.githubLogin;
+const _googleRow = (_sess.googleEmail ? _identityRow('Google', 'fab fa-google', _sess.googleEmail) : '') +
+(_sess.githubLogin ? _identityRow('GitHub', 'fab fa-github', _sess.githubLogin) : '') +
+((_canLinkGoogle || _canLinkGithub)
+? '<div class="info-row" style="flex-direction:column;align-items:stretch;gap:8px;"><span class="info-key">Hubungkan akun</span>' +
+(_canLinkGoogle ? '<div id="pfGoogleBtn" style="min-height:44px;display:flex;justify-content:center;"></div>' : '') +
+(_canLinkGithub ? '<button type="button" class="pf-gh-btn" onclick="window._hzStartGithub()"><i class="fab fa-github"></i>Hubungkan GitHub</button>' : '') +
+'<span style="font-size:10px;font-weight:600;line-height:1.5;color:var(--text-secondary);">Dipakai untuk memulihkan username dan password kalau suatu saat lupa.</span></div>'
+: '');
 const _fmtTs = ts => { if (!ts) return 'Tidak terbatas'; const d = new Date(ts); return d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) + ', ' + d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); };
 const _sessExp = _sess.expiresAt && Date.now() > _sess.expiresAt;
-const _stBadge = _sessExp ? '<span class="info-val badge-expired" id="infoStatusBadge">EXPIRED</span>' : '<span class="info-val badge-active" id="infoStatusBadge">ACTIVE</span>';
+const _stBadge = _guest ? '<span class="info-val" id="infoStatusBadge">\u2014</span>' : _sessExp ? '<span class="info-val badge-expired" id="infoStatusBadge">EXPIRED</span>' : '<span class="info-val badge-active" id="infoStatusBadge">ACTIVE</span>';
 const _devLimitVal = _sess.deviceLimit !== undefined ? _sess.deviceLimit : 1;
 const _devLimitLabel = _devLimitVal === 0 ? 'UNLIMITED' : (_devLimitVal === 2 ? '2 DEVICE' : (_devLimitVal === 1 ? '1 DEVICE' : '-'));
 const _bl = currentBattery ? Math.round(currentBattery.level * 100) : null;
@@ -5614,19 +6005,21 @@ const _vipPanelBtnHtml = (_sess.role === 'vip')
 ? '<button type="button" class="btn-vip-panel" onclick="window.openVipPanel()"><i class="fas fa-crown"></i>PANEL VIP</button>'
 : '';
 const _myUid       = _sess.id || '';
-const _myPhotoUrl  = (typeof window._hidzPhotoUrl === 'function') ? window._hidzPhotoUrl(_myUid) : profileImg;
-const _myHasPhoto  = !!(typeof window._hidzHasCustomPhoto === 'function' && window._hidzHasCustomPhoto(_myUid));
+const _myPhotoUrl  = (!_guest && typeof window._hidzPhotoUrl === 'function') ? window._hidzPhotoUrl(_myUid) : profileImg;
+const _myHasPhoto  = !_guest && !!(typeof window._hidzHasCustomPhoto === 'function' && window._hidzHasCustomPhoto(_myUid));
 const _fotoProfilHtml =
 '<div class="section-title">Foto Profil</div>' +
 '<div class="pfoto-card">' +
 '<div class="pfoto-avatar-wrap">' +
 '<img class="pfoto-avatar" id="pfotoAvatarImg" src="' + _myPhotoUrl + '" alt="Foto Profil" onerror="this.src=\'' + profileImg + '\'">' +
-'<button type="button" class="pfoto-edit-btn" onclick="document.getElementById(\'pfotoFileInput\').click()" title="Ganti foto profil"><i class="fas fa-camera"></i></button>' +
-'<input type="file" accept="image/*" id="pfotoFileInput" style="display:none;" onchange="window._hidzChangePhoto(this)">' +
+(_guest
+? '<button type="button" class="pfoto-edit-btn" disabled title="Login untuk mengganti foto profil"><i class="fas fa-camera"></i></button>'
+: '<button type="button" class="pfoto-edit-btn" onclick="document.getElementById(\'pfotoFileInput\').click()" title="Ganti foto profil"><i class="fas fa-camera"></i></button>' +
+'<input type="file" accept="image/*" id="pfotoFileInput" style="display:none;" onchange="window._hidzChangePhoto(this)">') +
 '</div>' +
 '<div class="pfoto-info">' +
-'<div class="pfoto-name">' + (_sess.username || '-') + '</div>' +
-'<div class="pfoto-hint">' + (_myHasPhoto ? 'Foto profil kamu sendiri' : 'Masih pakai logo default HidzProject') + '</div>' +
+'<div class="pfoto-name">' + (_guest ? 'Tamu' : (_sess.username || '-')) + '</div>' +
+'<div class="pfoto-hint">' + (_guest ? 'Login untuk mengganti foto profil' : (_myHasPhoto ? 'Foto profil kamu sendiri' : 'Masih pakai logo default HidzProject')) + '</div>' +
 (_myHasPhoto ? '<button type="button" class="pfoto-reset-btn" onclick="window._hidzResetPhoto()"><i class="fas fa-rotate-left"></i> Pakai Logo Default</button>' : '') +
 '</div>' +
 '</div>';
@@ -5634,17 +6027,17 @@ const _infoAkun =
 '<div class="section-title">Info Akun</div>' +
 '<div class="info-section">' +
 '<div class="info-section-hdr"><i class="fas fa-user-shield" style="color:rgba(255,255,255,0.8);font-size:12px;"></i><span class="info-section-ttl">INFO AKUN</span></div>' +
-'<div class="info-row"><span class="info-key">Username</span><span class="info-val">' + (_sess.username||'-') + '</span></div>' +
-'<div class="info-row"><span class="info-key">Password</span><span class="info-val" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;"><span id="pwDisplayEl">' + (_isPwVis?_rawPw:_maskedPw) + '</span><button class="pw-toggle-btn" onclick="window.togglePwProfile()" title="Lihat password"><i class="fas ' + (_isPwVis?'fa-eye-slash':'fa-eye') + '" id="pwEyeIconEl"></i></button></span></div>' +
-'<div class="info-row"><span class="info-key">Role</span><span class="info-val" style="text-transform:uppercase;' + ((_sess.role==='vip')?'color:#fbbf24;font-weight:900;':((_sess.role==='admin')?'color:#a78bfa;':' color:#60a5fa;')) + '">' + (_sess.role||'user') + '</span></div>' +
+'<div class="info-row"><span class="info-key">Username</span><span class="info-val">' + (_guest ? '\u2014' : (_sess.username||'-')) + '</span></div>' +
+_loginRow + _googleRow +
+'<div class="info-row"><span class="info-key">Role</span><span class="info-val" style="text-transform:uppercase;' + ((_sess.role==='vip')?'color:#fbbf24;font-weight:900;':((_sess.role==='admin')?'color:#a78bfa;':' color:#60a5fa;')) + '">' + (_guest ? '\u2014' : (_sess.role||'user')) + '</span></div>' +
 '<div class="info-row"><span class="info-key">Durasi</span>' +
 '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">' +
-'<span class="info-val" id="infoDurasiLabel">' + (_sess.durationLabel||'-') + '</span>' +
+'<span class="info-val" id="infoDurasiLabel">' + (_guest ? '\u2014' : (_sess.durationLabel||'-')) + '</span>' +
 '<span id="durasiCountdown" style="font-size:10px;font-weight:800;font-family:\'Orbitron\',monospace;letter-spacing:.5px;"></span>' +
 '</div></div>' +
 '<div class="info-row"><span class="info-key">Status</span>' + _stBadge + '</div>' +
-'<div class="info-row"><span class="info-key">Berakhir</span><span class="info-val" id="infoBerakhirVal" style="font-size:11px;">' + _fmtTs(_sess.expiresAt) + '</span></div>' +
-'<div class="info-row"><span class="info-key">Device Limit</span><span class="info-val">' + _devLimitLabel + '</span></div>' +
+'<div class="info-row"><span class="info-key">Berakhir</span><span class="info-val" id="infoBerakhirVal" style="font-size:11px;">' + (_guest ? '\u2014' : _fmtTs(_sess.expiresAt)) + '</span></div>' +
+'<div class="info-row"><span class="info-key">Device Limit</span><span class="info-val">' + (_guest ? '\u2014' : _devLimitLabel) + '</span></div>' +
 '</div>';
 const _infoDev =
 '<div class="section-title">Info Device</div>' +
@@ -5683,7 +6076,7 @@ toggleIconClass +
 '" id="darkIcon" style="font-size:22px; color:' +
 toggleColor +
 '; transition: 0.3s;"></i></div>' +
-'<div class="setting-item" onclick="window.openNotifHistory()">' +
+'<div class="setting-item"' + (_guest ? ' data-guest-lock' : '') + ' onclick="window.openNotifHistory()">' +
 '<span><i class="fas fa-bell" style="margin-right:10px; color:var(--primary);"></i> Riwayat Notifikasi</span>' +
 '<i class="fas fa-chevron-right" style="color:var(--text-secondary); font-size:12px;"></i></div>' +
 '<div class="section-title">Tema Warna</div>' +
@@ -5704,10 +6097,13 @@ HIDZ_WHATSAPP_URL +
 '<span><i class="fab fa-whatsapp" style="margin-right:10px; color:#25D366;"></i> Contact Admin</span>' +
 '<i class="fas fa-external-link-alt" style="color:var(--text-secondary); font-size:12px;"></i></div></a>' +
 _pwaBtnHtml +
-'<button class="btn-logout-profile" onclick="window.hidzLogout()"><i class="fas fa-sign-out-alt"></i>LOGOUT</button>' +
+(_guest
+? '<button class="btn-logout-profile btn-login-profile" onclick="window.openLoginSheet(\'login\', { auto: true })"><i class="fas fa-arrow-right-to-bracket"></i>MASUK / DAFTAR</button>'
+: '<button class="btn-logout-profile" onclick="window.hidzLogout()"><i class="fas fa-sign-out-alt"></i>LOGOUT</button>') +
 '</div>';
 navContainer.innerHTML = navHtml;
 pageContainer.innerHTML = pagesHtml;
+if (typeof window._hzMountProfileLink === 'function') window._hzMountProfileLink();
 updateClock();
 updateBatteryUI();
 const btnTheme = document.getElementById("btnThemeToggleWeb");
@@ -6173,7 +6569,7 @@ var INBOX_MAX_SHOWS  = 3;
 var HIST_PREVIEW     = 3;            
 var SWEEP_EVERY_MS   = 30000;        
 var PUSH_SUPPORTED = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
-var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', project_new: 'fa-rocket', voucher_new: 'fa-ticket-alt', maintenance: 'fa-tools' };
+var NOTE_ICONS = { reset_password: 'fa-key', duration_added: 'fa-hourglass-half', role_upgraded: 'fa-crown', credential_request: 'fa-id-card', project_new: 'fa-rocket', voucher_new: 'fa-ticket-alt', maintenance: 'fa-tools' };
 function byId(id) { return document.getElementById(id); }
 function deviceId() { return localStorage.getItem(DEVICE_KEY) || ''; }
 function toast(msg) {
@@ -6741,10 +7137,12 @@ if (!sess || !sess.id) {
 forceLogout();
 return;
 }
+/* Akun yang terhubung ke Google/GitHub dikenali lewat token Firebase; token harus diambil SEBELUM forceLogout() menutup sesi Firebase. */
+window._hzSessToken().then(function (tk) {
 try {
 fetch('/api/logout', {
 method: 'POST',
-headers: { 'Content-Type': 'application/json' },
+headers: window._hzAuthHeaders(tk),
 keepalive: true,
 body: JSON.stringify({
 id: sess.id,
@@ -6756,6 +7154,7 @@ role: sess.role
 } catch (e) {}
 if (typeof window._hzPushForget === 'function') window._hzPushForget(sess);
 forceLogout();
+});
 }
 function _checkSessionValidity() {
 var sess = getSession();
@@ -7148,10 +7547,6 @@ _verifySessionAndReveal(_loadSess, _overlay);
 }
 var _btnLogin = document.getElementById('btnLogin');
 if (_btnLogin) _btnLogin.addEventListener('click', doLogin);
-document.addEventListener('keydown', function(e) {
-var ov = document.getElementById('loginOverlay');
-if (e.key === 'Enter' && ov && ov.style.display !== 'none') doLogin();
-});
 if (_loginLockoutRemainingMs() > 0) {
 _startLoginCooldownUI(document.getElementById('loginError'));
 }
@@ -7164,11 +7559,18 @@ var _loginBusy = false;
 function _setLoginBusy(busy) {
 _loginBusy = busy;
 var btn = document.getElementById('btnLogin');
-if (!btn) return;
+if (btn) {
 btn.disabled = busy;
 btn.innerHTML = busy
-? '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>MEMUAT'
-: '<i class="fas fa-arrow-right" style="margin-right:6px;"></i>LOGIN';
+? '<i class="fas fa-spinner fa-spin"></i>MEMUAT'
+: '<i class="fas fa-arrow-right"></i>MASUK';
+}
+[].forEach.call(document.querySelectorAll('#loginOverlay .lc-submit'), function (b) {
+b.disabled = busy;
+if (busy && !b.hasAttribute('data-html')) { b.setAttribute('data-html', b.innerHTML); b.innerHTML = '<i class="fas fa-spinner fa-spin"></i>MEMUAT'; }
+else if (!busy && b.hasAttribute('data-html')) { b.innerHTML = b.getAttribute('data-html'); b.removeAttribute('data-html'); }
+});
+[].forEach.call(document.querySelectorAll('#loginOverlay .lc-gh'), function (b) { b.disabled = busy; });
 }
 function _loginLockoutRemainingMs() {
 var until = parseInt(localStorage.getItem(LOGIN_LOCKOUT_KEY) || '0', 10);
@@ -7268,7 +7670,8 @@ body: JSON.stringify({ username: username, password: password, turnstileToken: w
 .then(function (res) {
 if (res && res.ok && res.account && res.firebaseToken) {
 if(res.vault&&window._applyHidzVault)window._applyHidzVault(res.vault); var acc = res.account;
-acc.password = password; 
+/* Akun yang terhubung ke Google/GitHub dikenali server lewat token Firebase: passwordnya tidak disimpan di browser. */
+if (acc.sso) acc.password = ''; else acc.password = password;
 _signInFirebaseToken(res.firebaseToken, function (ok) {
 if (!ok) {
 _setLoginBusy(false);
@@ -7303,6 +7706,587 @@ errEl.textContent = 'Gagal terhubung ke server. Periksa koneksi internet kamu, l
 errEl.style.display = 'block';
 });
 }
+/* ===== HALAMAN AWAL, GOOGLE, GITHUB, DAN PERMINTAAN UBAH AKUN =====
+Google dan GitHub hanya membuktikan siapa pemiliknya; server (lib/sso.js) yang mencocokkannya ke akun HIDZPROJECT.
+Orang baru wajib membuat username & password dulu (akunnya baru dibuat setelah itu), orang lama masuk dengan
+username & password, dan yang lupa mengajukan data baru yang menunggu persetujuan admin. Setelah masuk semuanya
+sama seperti login biasa: plan, masa aktif, batas perangkat, chat, dan notifikasi tidak berubah.
+Tombol Google/GitHub baru tampil kalau GOOGLE_CLIENT_ID / GITHUB_CLIENT_ID diatur di Vercel (atribut data-* di
+#loginOverlay); tanpa itu kartu masuk hanya berisi username & password. */
+var _view = 'login';
+var _ctx = { setup: '', recover: '', provider: '', label: '', username: '' };
+var _reqs = [];
+var _pollTimer = null, _pollBusy = false, _claiming = false;
+var _gsiPromise = null, _gsiReady = false;
+var _ghPending = null, _toastTimer = null, _gateStamp = 0;
+var USERNAME_RE = /^[A-Za-z0-9_.-]{3,20}$/;
+var REQ_KEY = 'hidz_cred_reqs';
+var POLL_MS = 3000;
+function _byId(id) { return document.getElementById(id); }
+function _cfg(attr) {
+var ov = _byId('loginOverlay');
+return (ov && ov.getAttribute(attr)) || '';
+}
+function _hasSession() {
+var s = getSession();
+return !!(s && s.id && isValid(s));
+}
+function _toast(msg) {
+var el = _byId('hzAuthToast');
+if (!el) return;
+el.textContent = msg;
+el.classList.add('show');
+clearTimeout(_toastTimer);
+_toastTimer = setTimeout(function () { el.classList.remove('show'); }, 3600);
+}
+function _gate() {
+return { turnstileToken: window._hzTurnstileToken || '', turnstilePass: window._hzTurnstilePass || '' };
+}
+function _post(url, body, headers) {
+return fetch(url, { method: 'POST', headers: headers || { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+.then(function (r) { return r.json(); })
+.catch(function () { return { ok: false, error: true }; });
+}
+function _showError(text) {
+var el = _byId('loginError');
+if (!el) return;
+el.textContent = text || '';
+el.style.display = text ? 'block' : 'none';
+}
+function _provName(p) { return p === 'github' ? 'GitHub' : 'Google'; }
+/* Token Firebase akun yang sedang login. Akun yang terhubung ke Google/GitHub tidak menyimpan password di
+browser: dikenali server lewat token ini, yang harus diambil SEBELUM sesi Firebase ditutup. */
+window._hzIdToken = function () {
+try {
+if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+return firebase.auth().currentUser.getIdToken(false).catch(function () { return ''; });
+}
+} catch (e) {}
+return Promise.resolve('');
+};
+window._hzSessToken = function () {
+var s = getSession();
+return (s && s.sso === true) ? window._hzIdToken() : Promise.resolve('');
+};
+window._hzAuthHeaders = function (token) {
+var h = { 'Content-Type': 'application/json' };
+if (token) h.Authorization = 'Bearer ' + token;
+return h;
+};
+/* ---------- kartu masuk: tampilan ---------- */
+function _focusFirst() {
+var ov = _byId('loginOverlay');
+var view = ov && ov.querySelector('.lc-view:not([hidden])');
+var input = view && view.querySelector('input');
+if (input && window.matchMedia && !window.matchMedia('(pointer: coarse)').matches) input.focus();
+}
+function _setView(name) {
+var ov = _byId('loginOverlay');
+if (!ov) return;
+_view = name;
+ov.setAttribute('data-view', name);
+[].forEach.call(ov.querySelectorAll('.lc-view'), function (el) { el.hidden = el.getAttribute('data-view') !== name; });
+var close = _byId('lcClose');
+if (close) close.hidden = (name === 'setup');
+_showError('');
+_mountProviders();
+if (name === 'status') _renderReqs();
+}
+function _go(name) {
+if (name === 'recover' && _ctx.recover) name = 'recover-form';
+if (name === 'recover-form' && !_ctx.recover) name = 'recover';
+if (name === 'recover-form') {
+_byId('lcRecUser').textContent = _ctx.username;
+_byId('lcRecName').value = _ctx.username;
+_byId('lcRecPass').value = '';
+_byId('lcRecPass2').value = '';
+}
+if (name === 'login') {
+var u = _byId('lc-username');
+if (u && _ctx.username && !u.value) u.value = _ctx.username;
+}
+_setView(name);
+_focusFirst();
+}
+window.openLoginSheet = function (view, opts) {
+var ov = _byId('loginOverlay');
+if (!ov || _hasSession()) return;
+if (ov.style.display === 'none') {
+ov.classList.add('hide');
+ov.style.display = 'flex';
+void ov.offsetWidth;
+}
+ov.classList.remove('hide');
+ov.style.opacity = '';
+if (view === 'status') _markSeen();
+_go(view || 'login');
+if (opts && opts.auto) _promptOneTap();
+};
+window.closeLoginSheet = function () {
+var ov = _byId('loginOverlay');
+if (!ov) return;
+ov.classList.add('hide');
+setTimeout(function () { if (ov.classList.contains('hide')) ov.style.display = 'none'; }, 280);
+};
+/* Masuk sebagai tamu: aplikasi tampil, tetapi hanya Profil yang bisa dipakai (lihat penjaga tamu di bawah). */
+window._hzEnterGuest = function () {
+try { sessionStorage.setItem('hz_browse', '1'); } catch (e) {}
+document.documentElement.classList.add('hz-browse');
+window.closeLoginSheet();
+};
+/* ---------- Google ---------- */
+function _loadGoogleScript() {
+if (_gsiPromise) return _gsiPromise;
+_gsiPromise = new Promise(function (resolve, reject) {
+if (window.google && window.google.accounts && window.google.accounts.id) { resolve(); return; }
+var sc = document.createElement('script');
+sc.src = 'https://accounts.google.com/gsi/client';
+sc.async = true;
+sc.onload = function () { resolve(); };
+sc.onerror = function () { _gsiPromise = null; reject(new Error('gsi')); };
+document.head.appendChild(sc);
+});
+return _gsiPromise;
+}
+function _gsiInit() {
+var cid = _cfg('data-google-client');
+if (!cid) return Promise.reject(new Error('no client'));
+return _loadGoogleScript().then(function () {
+if (_gsiReady) return;
+window.google.accounts.id.initialize({ client_id: cid, callback: _onGoogleCredential, auto_select: false, cancel_on_tap_outside: true });
+_gsiReady = true;
+});
+}
+function _renderGoogleButton(el) {
+if (!el) return;
+_gsiInit().then(function () {
+el.innerHTML = '';
+window.google.accounts.id.renderButton(el, {
+type: 'standard', theme: 'filled_black', size: 'large', text: 'continue_with',
+shape: 'pill', logo_alignment: 'left', locale: 'id',
+width: Math.max(200, Math.min(350, el.clientWidth || 300))
+});
+el.setAttribute('data-ready', '1');
+}).catch(function () {});
+}
+/* Muncul sendiri (akun Google di perangkat ditawarkan); kalau pengunjung menutupnya, tombol manual tetap ada. */
+function _promptOneTap() {
+if (!_cfg('data-google-client') || _hasSession()) return;
+_gsiInit().then(function () { try { window.google.accounts.id.prompt(); } catch (e) {} }).catch(function () {});
+}
+function _onGoogleCredential(resp) {
+if (!resp || !resp.credential) return;
+var payload = { provider: 'google', credential: resp.credential };
+if (_hasSession()) _linkIdentity(payload); else _ssoBegin(payload);
+}
+/* ---------- GitHub ---------- */
+function _startGithub() {
+var cid = _cfg('data-github-client');
+if (!cid) { _toast('Login GitHub belum diaktifkan'); return; }
+var bytes = new Uint8Array(16);
+(window.crypto || window.msCrypto).getRandomValues(bytes);
+var state = [].map.call(bytes, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+var redirect = location.origin + '/github-callback.html';
+var url = 'https://github.com/login/oauth/authorize?client_id=' + encodeURIComponent(cid) +
+'&redirect_uri=' + encodeURIComponent(redirect) + '&scope=' + encodeURIComponent('read:user user:email') +
+'&state=' + state;
+try { localStorage.removeItem('hidz_gh_result'); } catch (e) {}
+var win = window.open(url, 'hidz_github', 'width=520,height=700');
+if (!win) { _toast('Izinkan popup di browser untuk masuk dengan GitHub, lalu coba lagi'); return; }
+_ghPending = { state: state, redirect: redirect };
+}
+window._hzStartGithub = _startGithub;
+function _onGithubResult(p) {
+if (!p || p.type !== 'hidz-github' || !_ghPending || p.state !== _ghPending.state) return;
+var redirect = _ghPending.redirect;
+_ghPending = null;
+try { localStorage.removeItem('hidz_gh_result'); } catch (e) {}
+if (p.error || !p.code) { _toast('Login GitHub dibatalkan'); return; }
+var payload = { provider: 'github', code: p.code, redirectUri: redirect };
+if (_hasSession()) _linkIdentity(payload); else _ssoBegin(payload);
+}
+window.addEventListener('message', function (e) {
+if (e.origin === location.origin) _onGithubResult(e.data);
+});
+window.addEventListener('storage', function (e) {
+if (e.key !== 'hidz_gh_result' || !e.newValue) return;
+try { _onGithubResult(JSON.parse(e.newValue)); } catch (x) {}
+});
+function _mountProviders() {
+var ov = _byId('loginOverlay');
+if (!ov) return;
+var gId = _cfg('data-google-client'), hId = _cfg('data-github-client');
+[].forEach.call(ov.querySelectorAll('[data-prov-box]'), function (box) {
+var gsi = box.querySelector('[data-gsi]'), gh = box.querySelector('[data-gh]'), off = box.querySelector('[data-prov-off]');
+gsi.hidden = !gId;
+gh.hidden = !hId;
+off.hidden = !!(gId || hId);
+var view = box.closest('.lc-view');
+if (gId && !gsi.getAttribute('data-ready') && view && !view.hidden) _renderGoogleButton(gsi);
+});
+}
+/* ---------- galat & hasil server ---------- */
+function _failText(res) {
+if (res) {
+if (res.reason === 'turnstile_failed' || res.reason === 'turnstile_unconfigured') return res.message || 'Verifikasi keamanan kedaluwarsa, silakan ulangi.';
+if (res.reason === 'identity_invalid') return 'Verifikasi Google atau GitHub gagal. Coba lagi.';
+if (res.reason === 'username_invalid') return 'Username 3-20 karakter: huruf, angka, titik, garis bawah, atau strip.';
+if (res.reason === 'password_invalid') return 'Password minimal 6 karakter dan tidak diawali atau diakhiri spasi.';
+if (res.reason === 'username_taken') return 'Username sudah dipakai, pilih yang lain.';
+if (res.error) {
+if (res.code === 'FIREBASE_AUTH_CONFIG') return 'Konfigurasi autentikasi keamanan server belum lengkap. Hubungi admin.';
+if (res.code === 'GOOGLE_NOT_CONFIGURED') return 'Login Google belum dikonfigurasi di server. Hubungi admin.';
+if (res.code === 'GITHUB_NOT_CONFIGURED') return 'Login GitHub belum dikonfigurasi di server. Hubungi admin.';
+if (res.code === 'GOOGLE_CERT_FETCH_FAILED' || res.code === 'GITHUB_FETCH_FAILED') return 'Layanan Google/GitHub sedang bermasalah. Coba lagi sebentar lagi.';
+}
+}
+return 'Gagal terhubung ke server. Periksa koneksi internet kamu, lalu coba lagi.';
+}
+function _handleFail(res) {
+_setLoginBusy(false);
+if (res && res.locked) { _showServerLockCountdown(_byId('loginError'), res.retryAfterSec); return; }
+_showError(_failText(res));
+if (res && res.reason === 'turnstile_failed' && typeof window._hzRelockGate === 'function') window._hzRelockGate();
+}
+function _credError(u, p, c) {
+if (!USERNAME_RE.test(u)) return 'Username 3-20 karakter: huruf, angka, titik, garis bawah, atau strip.';
+if (p.length < 6) return 'Password minimal 6 karakter.';
+if (p.length > 64) return 'Password maksimal 64 karakter.';
+if (p !== p.trim()) return 'Password tidak boleh diawali atau diakhiri spasi.';
+if (p !== c) return 'Konfirmasi password tidak sama.';
+return '';
+}
+function _ssoSignIn(acc, token, onFail) {
+acc.password = '';
+acc.sso = true;
+_signInFirebaseToken(token, function (ok) {
+if (!ok) { _setLoginBusy(false); if (onFail) onFail(); else _showError('Autentikasi keamanan gagal. Coba masuk kembali.'); return; }
+_proceedAfterCredentialsValid(acc, _byId('loginError'));
+});
+}
+/* ---------- 1. verifikasi Google / GitHub ---------- */
+function _ssoBegin(payload) {
+if (_loginBusy) return;
+var sheet = _byId('loginOverlay');
+if (!sheet || sheet.style.display === 'none' || sheet.classList.contains('hide')) window.openLoginSheet('login');
+_showError('');
+_setLoginBusy(true);
+_post('/api/login', Object.assign({ action: 'sso-begin' }, payload, _gate())).then(function (res) {
+if (!(res && res.ok)) { _handleFail(res); return; }
+_setLoginBusy(false);
+_ctx.provider = res.provider;
+_ctx.label = res.label;
+if (res.status === 'new') {
+if (_view === 'recover') { _showError('Akun ' + _provName(res.provider) + ' ini belum terdaftar. Pilih "Daftar sekarang" untuk membuat akun.'); return; }
+_ctx.setup = res.setupToken;
+_byId('lcSetupLabel').textContent = _provName(res.provider) + ' terverifikasi: ' + res.label;
+_byId('lcSetupUser').value = res.suggestedUsername || '';
+_byId('lcSetupPass').value = '';
+_byId('lcSetupPass2').value = '';
+_setView('setup');
+_focusFirst();
+return;
+}
+_ctx.recover = res.recoverToken;
+_ctx.username = res.username;
+if (_view === 'recover') { _go('recover-form'); return; }
+_showRegistered(res);
+}).catch(function () { _handleFail(null); });
+}
+function _reqMessage(r) {
+if (r.status === 'approved') return 'Permintaan ubah data akun ' + r.username + ' sudah disetujui admin. Masuk dengan username dan password yang baru.';
+if (r.status === 'rejected') return 'Permintaan ubah data akun ' + r.username + ' ditolak admin. Data akun tidak diubah.' + _reasonText(r.reason);
+return 'Permintaan ubah data akun ' + r.username + ' masih menunggu persetujuan admin.';
+}
+function _showRegistered(res) {
+var lead = _byId('lcRegLead');
+lead.textContent = '';
+lead.appendChild(document.createTextNode('Akun ' + _provName(res.provider) + ' ini sudah terdaftar sebagai '));
+var b = document.createElement('b');
+b.textContent = res.username;
+lead.appendChild(b);
+lead.appendChild(document.createTextNode('. Masuk dengan username dan password yang kamu buat saat mendaftar.'));
+var note = _byId('lcRegReq');
+if (res.request) {
+note.hidden = false;
+note.setAttribute('data-st', res.request.status);
+note.textContent = _reqMessage(res.request);
+} else {
+note.hidden = true;
+}
+_setView('registered');
+}
+/* ---------- 2. buat username & password (wajib) ---------- */
+function _submitSetup() {
+if (_loginBusy) return;
+var u = _byId('lcSetupUser').value.trim(), p = _byId('lcSetupPass').value, c = _byId('lcSetupPass2').value;
+var bad = _credError(u, p, c);
+if (bad) { _showError(bad); return; }
+_showError('');
+_setLoginBusy(true);
+_post('/api/login', Object.assign({ action: 'sso-register', setupToken: _ctx.setup, username: u, password: p }, _gate())).then(function (res) {
+if (res && res.ok && res.account && res.firebaseToken) {
+if (res.vault && window._applyHidzVault) window._applyHidzVault(res.vault);
+_ssoSignIn(res.account, res.firebaseToken);
+return;
+}
+if (res && res.reason === 'setup_expired') {
+_setLoginBusy(false);
+_ctx.setup = '';
+_setView('register');
+_showError('Verifikasi sudah kedaluwarsa. Ulangi verifikasi Google atau GitHub.');
+return;
+}
+if (res && res.reason === 'identity_taken') {
+_setLoginBusy(false);
+_showRegistered({ provider: _ctx.provider, username: res.username, request: null });
+return;
+}
+_handleFail(res);
+});
+}
+/* ---------- 3. lupa username / password: ajukan data baru ---------- */
+function _submitRecover() {
+if (_loginBusy) return;
+var u = _byId('lcRecName').value.trim(), p = _byId('lcRecPass').value, c = _byId('lcRecPass2').value;
+var bad = _credError(u, p, c);
+if (bad) { _showError(bad); return; }
+_showError('');
+_setLoginBusy(true);
+_post('/api/login', Object.assign({ action: 'cred-request', recoverToken: _ctx.recover, username: u, password: p }, _gate())).then(function (res) {
+if (res && res.ok && res.request) {
+_setLoginBusy(false);
+var r = res.request;
+_reqs = _reqs.filter(function (x) { return x.username !== r.username || x.status !== 'pending'; });
+_reqs.unshift({ id: r.id, secret: r.secret, username: r.username, newUsername: r.newUsername, status: 'pending', createdAt: r.createdAt, decidedAt: null, reason: null, done: false, seen: true });
+_saveReqs();
+_ctx.recover = '';
+_toast('Permintaan dikirim ke admin');
+_startPoll();
+_setView('status');
+return;
+}
+if (res && res.reason === 'proof_expired') {
+_setLoginBusy(false);
+_ctx.recover = '';
+_setView('recover');
+_showError('Verifikasi sudah kedaluwarsa. Verifikasi Google atau GitHub sekali lagi.');
+return;
+}
+_handleFail(res);
+});
+}
+/* ---------- 4. pantau permintaan sampai diputuskan admin ---------- */
+function _loadReqs() {
+try {
+var list = JSON.parse(localStorage.getItem(REQ_KEY) || '[]');
+var cutoff = Date.now() - 14 * 86400000;
+return (Array.isArray(list) ? list : []).filter(function (r) {
+return r && typeof r.id === 'string' && typeof r.secret === 'string' && r.username && !(r.done && (r.decidedAt || r.createdAt || 0) < cutoff);
+});
+} catch (e) { return []; }
+}
+function _saveReqs() {
+try { localStorage.setItem(REQ_KEY, JSON.stringify(_reqs)); } catch (e) {}
+}
+function _markSeen() {
+var changed = false;
+_reqs.forEach(function (r) { if (!r.seen) { r.seen = true; changed = true; } });
+if (changed) { _saveReqs(); _renderReqs(); }
+}
+function _removeReq(id) {
+_reqs = _reqs.filter(function (r) { return r.id !== id; });
+_saveReqs();
+_renderReqs();
+}
+/* Alasan penolakan yang diketik admin (kalau ada) ikut ditampilkan ke pemohon. */
+function _reasonText(reason) {
+if (!reason) return '';
+return reason === 'username_taken' ? ' Username barunya sudah dipakai akun lain.' : ' Alasan admin: ' + reason;
+}
+function _reqLine(r) {
+if (r.status === 'approved') return 'Disetujui. Username dan password baru sudah aktif' + (r.newUsername ? ' (username: ' + r.newUsername + ')' : '') + '.';
+if (r.status === 'rejected') return 'Ditolak admin. Data akun tidak diubah, pakai username dan password yang lama.' + _reasonText(r.reason);
+return 'Menunggu persetujuan admin. Username baru: ' + (r.newUsername || '-') + '.';
+}
+var REQ_LABEL = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' };
+function _renderReqs() {
+var esc = window.hzEsc;
+var list = _byId('lcReqList');
+if (list) {
+list.innerHTML = _reqs.length ? _reqs.map(function (r) {
+return '<div class="lc-req" data-st="' + esc(r.status) + '"><div class="lc-req-head"><span>' + esc(r.username) + '</span><b class="lc-req-badge">' + esc(REQ_LABEL[r.status] || r.status) + '</b></div>' +
+esc(_reqLine(r)) +
+(r.status !== 'pending' ? '<div><button type="button" class="lc-req-x" data-act="dismiss-req" data-id="' + esc(r.id) + '">Tutup pesan ini</button></div>' : '') + '</div>';
+}).join('') : '<p class="lc-empty">Belum ada permintaan.</p>';
+}
+var banner = _byId('hzCredBanner');
+if (banner) {
+var shown = _hasSession() ? [] : _reqs.filter(function (r) { return r.status === 'pending' || !r.seen; }).slice(0, 3);
+banner.innerHTML = shown.map(function (r) {
+return '<div class="hzb-item" data-st="' + esc(r.status) + '" data-act="open-status"><i class="hzb-dot"></i><span><b>' + esc(r.username) + '</b> &middot; ' +
+esc(r.status === 'pending' ? 'menunggu persetujuan admin' : r.status === 'approved' ? 'perubahan disetujui' : 'perubahan ditolak') + '</span></div>';
+}).join('');
+banner.classList.toggle('show', shown.length > 0);
+}
+}
+function _needsPoll(r) { return !r.done && (r.status === 'pending' || r.status === 'approved'); }
+function _startPoll() {
+if (_pollTimer || _hasSession()) return;
+_pollTimer = setInterval(_poll, POLL_MS);
+_poll();
+}
+function _stopPoll() {
+clearInterval(_pollTimer);
+_pollTimer = null;
+}
+function _applyStatus(item) {
+var r = _reqs.filter(function (x) { return x.id === item.id; })[0];
+if (!r) return;
+if (item.status === 'unknown') { _reqs = _reqs.filter(function (x) { return x !== r; }); return; }
+if (item.status !== r.status) {
+r.status = item.status;
+r.decidedAt = item.decidedAt || Date.now();
+r.reason = item.reason || null;
+r.seen = false;
+_toast(item.status === 'approved' ? 'Permintaan akun ' + r.username + ' disetujui admin' : 'Permintaan akun ' + r.username + ' ditolak. Data akun tidak diubah.');
+}
+if (item.status === 'rejected') r.done = true;
+if (item.status === 'approved') {
+if (item.firebaseToken && item.account) _claim(r, item);
+else if (item.claimExpired) r.done = true;
+}
+}
+/* Disetujui: browser yang mengajukan langsung masuk sendiri dengan username & password barunya. */
+function _claim(r, item) {
+if (_claiming || _hasSession()) return;
+_claiming = true;
+r.done = true;
+_reqs = _reqs.filter(function (x) { return x !== r; });
+_toast('Permintaan disetujui. Masuk otomatis...');
+_ssoSignIn(item.account, item.firebaseToken, function () {
+_claiming = false;
+r.claimExpired = true;
+r.seen = false;
+_reqs.unshift(r);
+_saveReqs();
+_renderReqs();
+_toast('Masuk otomatis gagal. Masuk manual dengan username dan password baru kamu.');
+});
+}
+function _poll() {
+if (_pollBusy || _claiming) return;
+if (_hasSession()) { _stopPoll(); _renderReqs(); return; }
+var todo = _reqs.filter(_needsPoll);
+if (!todo.length) { _stopPoll(); return; }
+if (document.visibilityState === 'hidden') return;
+_pollBusy = true;
+_post('/api/check-session?vipAction=sso-status', {
+vipAction: 'sso-status',
+requests: todo.map(function (r) { return { id: r.id, secret: r.secret }; })
+}).then(function (res) {
+if (res && res.ok && Array.isArray(res.results)) {
+if (res.vault && window._applyHidzVault) window._applyHidzVault(res.vault);
+res.results.forEach(_applyStatus);
+_saveReqs();
+_renderReqs();
+}
+}).then(function () { _pollBusy = false; });
+}
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') _poll(); });
+window.addEventListener('online', _poll);
+/* ---------- 5. hubungkan Google/GitHub ke akun yang sedang login (akun lama buatan admin / hasil beli VIP) ---------- */
+function _linkIdentity(payload) {
+window._hzIdToken().then(function (tk) {
+return _post('/api/check-session?vipAction=sso-link', Object.assign({ vipAction: 'sso-link' }, payload), window._hzAuthHeaders(tk));
+}).then(function (res) {
+if (res && res.ok) {
+var cur = getSession();
+if (cur) {
+if (res.provider === 'github') cur.githubLogin = res.label; else cur.googleEmail = res.label;
+try { localStorage.setItem(SESS_KEY, JSON.stringify(cur)); } catch (e) {}
+}
+_toast('Akun ' + _provName(res.provider) + ' terhubung');
+if (typeof rebuildUIPreserveScroll === 'function') rebuildUIPreserveScroll();
+return;
+}
+var why = res && res.reason;
+_toast(why === 'identity_taken' ? 'Akun ini sudah terhubung ke akun HIDZPROJECT lain'
+: why === 'already_linked' ? 'Akun HIDZPROJECT ini sudah terhubung ke akun yang berbeda'
+: why === 'identity_invalid' ? 'Verifikasi gagal, coba lagi'
+: 'Gagal menghubungkan akun, coba lagi');
+});
+}
+window._hzMountProfileLink = function () {
+var el = _byId('pfGoogleBtn');
+if (el && _cfg('data-google-client')) _renderGoogleButton(el);
+};
+/* ---------- pasang semuanya ---------- */
+(function () {
+var ov = _byId('loginOverlay');
+if (!ov) return;
+ov.addEventListener('click', function (e) {
+var t = e.target.closest ? e.target.closest('[data-go],[data-act],[data-gh]') : null;
+if (!t) { if (e.target === ov && _view !== 'setup') window.closeLoginSheet(); return; }
+if (t.hasAttribute('data-gh')) { _startGithub(); return; }
+var go = t.getAttribute('data-go');
+if (go) { _go(go); return; }
+var act = t.getAttribute('data-act');
+if (act === 'cancel-setup') { _ctx.setup = ''; _go('register'); }
+else if (act === 'dismiss-req') _removeReq(t.getAttribute('data-id'));
+});
+var close = _byId('lcClose');
+if (close) close.addEventListener('click', window.closeLoginSheet);
+var setupBtn = _byId('lcSetupBtn');
+if (setupBtn) setupBtn.addEventListener('click', _submitSetup);
+var recBtn = _byId('lcRecoverBtn');
+if (recBtn) recBtn.addEventListener('click', _submitRecover);
+document.addEventListener('keydown', function (e) {
+if (e.key !== 'Enter' || ov.style.display === 'none' || ov.classList.contains('hide')) return;
+if (e.target && e.target.closest && !e.target.closest('#loginOverlay')) return;
+var fn = { login: doLogin, setup: _submitSetup, 'recover-form': _submitRecover }[_view];
+if (fn) { e.preventDefault(); fn(); }
+});
+var signIn = _byId('hzlSignIn');
+if (signIn) signIn.addEventListener('click', function () { window.openLoginSheet('login', { auto: true }); });
+var guest = _byId('lcGuest');
+if (guest) guest.addEventListener('click', window._hzEnterGuest);
+var banner = _byId('hzCredBanner');
+if (banner) banner.addEventListener('click', function (e) {
+if (e.target.closest && e.target.closest('[data-act="open-status"]')) window.openLoginSheet('status');
+});
+_reqs = _loadReqs();
+_saveReqs();
+_renderReqs();
+if (_reqs.some(_needsPoll)) _startPoll();
+})();
+/* ---------- pengunjung (belum login): hanya halaman Profil yang bisa dipakai ---------- */
+window._hzGuestGate = function () {
+if (_hasSession()) return;
+var now = Date.now();
+if (now - _gateStamp < 900) return;
+_gateStamp = now;
+_toast('Login dulu dengan Google atau GitHub untuk memakai fitur ini');
+window.openLoginSheet('login', { auto: true });
+};
+function _guestBlocked(t) {
+if (!t || !t.closest) return false;
+if (t.closest('[data-guest-lock]')) return true;
+return !!t.closest('#appContainer') && !t.closest('#page-account, [data-guest-ok]');
+}
+document.addEventListener('click', function (e) {
+if (!document.documentElement.classList.contains('hz-guest') || !_guestBlocked(e.target)) return;
+e.preventDefault();
+e.stopPropagation();
+e.stopImmediatePropagation();
+window._hzGuestGate();
+}, true);
+document.addEventListener('focusin', function (e) {
+var t = e.target;
+if (!document.documentElement.classList.contains('hz-guest') || !t || !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || !_guestBlocked(t)) return;
+t.blur();
+window._hzGuestGate();
+}, true);
 var _serverLockTimer = null;
 function _showServerLockCountdown(errEl, retryAfterSec) {
 clearTimeout(_serverLockTimer);
@@ -7425,13 +8409,16 @@ role: found.role, createdAt: found.createdAt, createdBy: found.createdBy || null
 expiresAt: _hasLimitedDur ? (Date.now() + found.durationMs) : null,
 durationLabel: found.durationLabel, durationMs: found.durationMs,
 deviceLimit: found.deviceLimit, activated: true, loginAt: Date.now(),
-logoutAt: found.logoutAt || null, loggedOut: false
+logoutAt: found.logoutAt || null, loggedOut: false,
+sso: found.sso, googleEmail: found.googleEmail, githubLogin: found.githubLogin
 };
 }
-fetch('/api/complete-login', {
+(found.sso ? window._hzIdToken() : Promise.resolve('')).then(function (tk) {
+return fetch('/api/complete-login', {
 method: 'POST',
-headers: { 'Content-Type': 'application/json' },
+headers: window._hzAuthHeaders(tk),
 body: JSON.stringify({ id: found.id, username: found.username, password: found.password, role: found.role })
+});
 })
 .then(function(r) { return r.json(); })
 .then(function(res) {
@@ -7442,7 +8429,8 @@ role: acc.role, createdAt: acc.createdAt, createdBy: acc.createdBy || null,
 expiresAt: acc.expiresAt, durationLabel: acc.durationLabel,
 durationMs: acc.durationMs, deviceLimit: acc.deviceLimit,
 activated: acc.activated, loginAt: acc.loginAt,
-logoutAt: acc.logoutAt || null, loggedOut: acc.loggedOut
+logoutAt: acc.logoutAt || null, loggedOut: acc.loggedOut,
+sso: found.sso, googleEmail: acc.googleEmail || found.googleEmail, githubLogin: acc.githubLogin || found.githubLogin
 } : _activateLocally(), errEl);
 })
 .catch(function() { _finishCompleteLogin(_activateLocally(), errEl); });
@@ -7483,9 +8471,15 @@ createdAt:     found.createdAt,
 expiresAt:     found.expiresAt,
 durationLabel: found.durationLabel || '-',
 deviceLimit:   found.deviceLimit !== undefined ? found.deviceLimit : 1,
-loginTime:     Date.now()
+loginTime:     Date.now(),
+sso:           found.sso === true,
+googleEmail:   found.googleEmail || null,
+githubLogin:   found.githubLogin || null
 };
 localStorage.setItem(SESS_KEY, JSON.stringify(sessData));
+/* Mulai dari sini bukan pengunjung lagi: halaman sambutan & mode lihat-lihat ditutup. */
+document.documentElement.classList.remove('hz-guest', 'hz-browse');
+document.documentElement.classList.add('hz-has-session');
 _checkForeignCountry(found);
 try { if (typeof buildUI === 'function') buildUI(); } catch(e) {}
 try { if (typeof buildHamburgerMenu === 'function') buildHamburgerMenu(); } catch(e) {}
@@ -9815,10 +10809,12 @@ VIP-nya sudah diverifikasi & datanya sudah difilter duluan di
 sana. Di-refresh berkala selagi panel masih kebuka supaya
 tetap kerasa real-time, dilepas lagi begitu ditutup. */
 function _vipRefreshList() {
-fetch('/api/vip/list', {
+window._hzSessToken().then(function (tk) {
+return fetch('/api/vip/list', {
 method: 'POST',
-headers: { 'Content-Type': 'application/json' },
+headers: window._hzAuthHeaders(tk),
 body: JSON.stringify({ vipId: _vipMe.id, vipUsername: _vipMe.username, vipPassword: _vipMe.password })
+});
 })
 .then(function (r) { return r.json(); })
 .then(function (res) {
@@ -10003,15 +10999,17 @@ ms = (msMap[durUnit] || msMap.hari) * durVal;
 var unitLabels = { detik: 'DETIK', menit: 'MENIT', jam: 'JAM', hari: 'HARI', minggu: 'MINGGU', bulan: 'BULAN', tahun: 'TAHUN' };
 durLabel = durVal + ' ' + (unitLabels[durUnit] || 'HARI');
 }
-fetch('/api/vip/create', {
+window._hzSessToken().then(function (tk) {
+return fetch('/api/vip/create', {
 method: 'POST',
-headers: { 'Content-Type': 'application/json' },
+headers: window._hzAuthHeaders(tk),
 body: JSON.stringify({
 vipId: _vipMe.id, vipUsername: _vipMe.username, vipPassword: _vipMe.password,
 username: username, password: password,
 isUnlimited: isUnlimitedDur, durationMs: ms, durationLabel: durLabel,
 deviceLimit: _vipDevLimit
 })
+});
 })
 .then(function (r) { return r.json(); })
 .then(function (res) {
@@ -10060,10 +11058,12 @@ if (!id) return;
 var btn = document.getElementById('vipDeleteConfirmBtn');
 if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> MEMPROSES...'; }
 function restore() { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash-alt"></i> HAPUS'; } }
-fetch('/api/vip/delete', {
+window._hzSessToken().then(function (tk) {
+return fetch('/api/vip/delete', {
 method: 'POST',
-headers: { 'Content-Type': 'application/json' },
+headers: window._hzAuthHeaders(tk),
 body: JSON.stringify({ vipId: _vipMe.id, vipUsername: _vipMe.username, vipPassword: _vipMe.password, targetId: id })
+});
 })
 .then(function (r) { return r.json(); })
 .then(function (res) {
@@ -11165,11 +12165,17 @@ var list=_qSA(sel);if(list&&list.length)return list;
 if(app){try{return app.querySelectorAll(sel);}catch(e){}}
 return list;
 };
+function setCls(el,name,on){if(el.classList.contains(name)!==on)el.classList.toggle(name,on);}
 function sync(){
 if(!app)return;
 var s=null;try{s=JSON.parse(localStorage.getItem("hidz_session")||"null");}catch(e){}
 var ok=!!(s&&s.id&&s.username&&(!s.expiresAt||Date.now()<=s.expiresAt));
-var lock=document.documentElement.classList.contains("hzg-lock")||(lov&&lov.style.display!=="none"&&!lov.classList.contains("hide"))||(ban&&ban.classList.contains("show"))||(mnt&&mnt.style.display==="block")||!ok;
+var root=document.documentElement;
+setCls(root,"hz-has-session",ok);setCls(root,"hz-guest",!ok);
+if(ok)setCls(root,"hz-browse",false);
+/* Pengunjung yang belum memilih "Lihat isi HIDZPROJECT" hanya melihat halaman sambutan; aplikasinya dicabut dari DOM. */
+var landing=!ok&&!root.classList.contains("hz-browse");
+var lock=root.classList.contains("hzg-lock")||landing||(ban&&ban.classList.contains("show"))||(mnt&&mnt.style.display==="block");
 if(lock){
 if(app.style.display!=="none")app.style.display="none";
 if(app.parentNode)app.parentNode.removeChild(app);

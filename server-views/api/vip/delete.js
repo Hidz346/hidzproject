@@ -3,6 +3,7 @@
    dilakukan Panel VIP versi lama, cuma sekarang eksekusinya di server. */
 
 var db = require('../../../lib/db');
+var firebaseAuth = require('../../../lib/firebase-auth');
 
 var securityGuard = require('../../../lib/security');
 
@@ -23,7 +24,11 @@ module.exports = async function (req, res) {
     var vipPassword = typeof body.vipPassword === 'string' ? body.vipPassword : '';
     var targetId    = typeof body.targetId === 'string' ? body.targetId : '';
 
-    if (!vipId || !vipUsername || !vipPassword || !targetId) {
+    /* VIP yang masuk dengan Google tidak punya password: dikenali lewat token Firebase. */
+    var tokenUid = await firebaseAuth.uidFromRequest(req);
+    var viaToken = !!tokenUid && tokenUid === vipId;
+
+    if (!vipId || (!viaToken && (!vipUsername || !vipPassword)) || !targetId) {
         res.status(200).json({ ok: false });
         return;
     }
@@ -35,11 +40,12 @@ module.exports = async function (req, res) {
     }
 
     var out = await db.mutateAccounts(function (list) {
-        var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
+        var me = db.findValidVip(list, vipId, vipUsername, vipPassword, tokenUid);
         if (!me) return { save: false, result: { valid: false } };
 
+        /* Akun yang terhubung ke Google/GitHub milik orangnya sendiri, bukan binaan Panel VIP. */
         var target = list.filter(function (u) { return u.id === targetId; })[0];
-        if (!target || target.role !== 'user') {
+        if (!target || target.role !== 'user' || db.hasIdentity(target)) {
             return { save: false, result: { valid: true, response: { ok: false, reason: 'not_found' } } };
         }
 

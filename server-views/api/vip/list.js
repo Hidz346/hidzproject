@@ -5,6 +5,7 @@
    memang perlu dia lihat. */
 
 var db = require('../../../lib/db');
+var firebaseAuth = require('../../../lib/firebase-auth');
 
 var securityGuard = require('../../../lib/security');
 
@@ -24,7 +25,11 @@ module.exports = async function (req, res) {
     var vipUsername = typeof body.vipUsername === 'string' ? body.vipUsername : '';
     var vipPassword = typeof body.vipPassword === 'string' ? body.vipPassword : '';
 
-    if (!vipId || !vipUsername || !vipPassword) {
+    /* VIP yang masuk dengan Google tidak punya password: dikenali lewat token Firebase. */
+    var tokenUid = await firebaseAuth.uidFromRequest(req);
+    var viaToken = !!tokenUid && tokenUid === vipId;
+
+    if (!vipId || (!viaToken && (!vipUsername || !vipPassword))) {
         res.status(200).json({ ok: false });
         return;
     }
@@ -41,7 +46,7 @@ module.exports = async function (req, res) {
         return;
     }
 
-    var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
+    var me = db.findValidVip(list, vipId, vipUsername, vipPassword, tokenUid);
     if (!me) {
         await db.registerRateLimitFailByKey(VIP_RATE_PATH, vipId);
         res.status(200).json({ ok: false });
@@ -49,7 +54,8 @@ module.exports = async function (req, res) {
     }
     await db.clearRateLimitByKey(VIP_RATE_PATH, vipId);
 
-    var users = list.filter(function (u) { return u.role === 'user'; }).map(function (u) {
+    /* Akun yang terhubung ke Google/GitHub tidak ikut: email/akun mereka bukan urusan VIP lain. */
+    var users = list.filter(function (u) { return u.role === 'user' && !db.hasIdentity(u); }).map(function (u) {
         var copy = {};
         Object.keys(u).forEach(function (k) { if (k !== 'password') copy[k] = u[k]; });
         return copy;

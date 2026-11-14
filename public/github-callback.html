@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Menghubungkan GitHub</title>
+<style>
+html, body { height: 100%; margin: 0; }
+body { display: flex; align-items: center; justify-content: center; background: #09090f; color: #e8e8f0; font: 600 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<p id="msg">Menghubungkan akun GitHub...</p>
+<script>
+/* Halaman ini hanya meneruskan hasil izin GitHub (code + state) ke jendela HIDZPROJECT yang membukanya.
+   Penukaran code menjadi identitas dilakukan server; halaman ini tidak memegang rahasia apa pun. */
+(function () {
+  var q = new URLSearchParams(location.search);
+  var err = q.get('error') ? 'denied' : '';
+  var payload = { type: 'hidz-github', code: q.get('code') || '', state: q.get('state') || '', error: err };
+  var sent = false;
+  try {
+    if (window.opener && !window.opener.closed) { window.opener.postMessage(payload, location.origin); sent = true; }
+  } catch (e) {}
+  /* Cadangan kalau jendela utama kehilangan hubungan dengan jendela ini: dibaca lewat event storage. */
+  try {
+    payload.t = Date.now();
+    localStorage.setItem('hidz_gh_result', JSON.stringify(payload));
+    sent = true;
+  } catch (e) {}
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  document.getElementById('msg').textContent = sent ? 'Selesai. Jendela ini akan ditutup.' : 'Kembali ke jendela HIDZPROJECT.';
+  setTimeout(function () { try { window.close(); } catch (e) {} }, 250);
+})();
+</script>
+</body>
+</html>

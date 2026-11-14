@@ -5,6 +5,7 @@
 var db = require('../../../lib/db');
 var pw = require('../../../lib/password');
 var notifSeed = require('../../../lib/notif-seed');
+var firebaseAuth = require('../../../lib/firebase-auth');
 
 var securityGuard = require('../../../lib/security');
 
@@ -32,7 +33,11 @@ module.exports = async function (req, res) {
     var durationMs   = typeof body.durationMs === 'number' ? body.durationMs : null;
     var durationLabel = typeof body.durationLabel === 'string' ? body.durationLabel : 'UNLIMITED';
 
-    if (!vipId || !vipUsername || !vipPassword || !newUsername || !newPassword) {
+    /* VIP yang masuk dengan Google tidak punya password: dikenali lewat token Firebase. */
+    var tokenUid = await firebaseAuth.uidFromRequest(req);
+    var viaToken = !!tokenUid && tokenUid === vipId;
+
+    if (!vipId || (!viaToken && (!vipUsername || !vipPassword)) || !newUsername || !newPassword) {
         res.status(200).json({ ok: false });
         return;
     }
@@ -48,7 +53,7 @@ module.exports = async function (req, res) {
     var hashed = pw.hashPassword(newPassword);
 
     var out = await db.mutateAccounts(function (list) {
-        var me = db.findValidVip(list, vipId, vipUsername, vipPassword);
+        var me = db.findValidVip(list, vipId, vipUsername, vipPassword, tokenUid);
         if (!me) return { save: false, result: { valid: false } };
 
         var dup = list.some(function (u) { return (u.username || '').toLowerCase() === newUsername.toLowerCase(); });

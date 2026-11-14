@@ -19,6 +19,7 @@ var RATE_PATH = 'hidz_login_rate_limit';
 
 var securityGuard = require('../../lib/security');
 var firebaseAuth = require('../../lib/firebase-auth');
+var sso = require('../../lib/sso');
 
 module.exports = async function (req, res) {
     if (!(await securityGuard.guard(req, res))) return;
@@ -26,6 +27,9 @@ module.exports = async function (req, res) {
         res.status(200).json({ ok: false });
         return;
     }
+
+    /* Daftar / pulihkan akun lewat Google atau GitHub punya rate limit & verifikasinya sendiri (lib/sso.js). */
+    if (req.body && typeof req.body.action === 'string' && await sso.handleLogin(req.body.action, req, res)) return;
 
     var limit = await db.checkLoginRateLimit(RATE_PATH, req);
     if (limit.blocked) {
@@ -136,7 +140,7 @@ module.exports = async function (req, res) {
     res.status(200).json({
         ok: true,
         firebaseToken: userToken,
-        account: {
+        account: Object.assign({
             id:            found.id,
             username:      found.username,
             role:          found.role || 'user',
@@ -148,7 +152,7 @@ module.exports = async function (req, res) {
             deviceLimit:   found.deviceLimit || 1,
             activated:     found.activated,
             logoutAt:      found.logoutAt || null
-        }
+        }, db.identityInfo(found))
     });
 };
 

@@ -14,6 +14,7 @@
 
 var db = require('../../lib/db');
 var pw = require('../../lib/password');
+var firebaseAuth = require('../../lib/firebase-auth');
 
 var securityGuard = require('../../lib/security');
 
@@ -30,7 +31,11 @@ module.exports = async function (req, res) {
     var password = typeof body.password === 'string' ? body.password : '';
     var role     = typeof body.role === 'string' ? body.role : '';
 
-    if (!id || !username || !password) {
+    /* Sama seperti complete-login: akun Google dikenali lewat token Firebase, bukan password. */
+    var tokenUid = await firebaseAuth.uidFromRequest(req);
+    var viaToken = !!tokenUid && tokenUid === id && id !== 'admin_hidz_protected' && role !== 'admin';
+
+    if (!id || (!viaToken && (!username || !password))) {
         res.status(200).json({ ok: false });
         return;
     }
@@ -56,7 +61,7 @@ module.exports = async function (req, res) {
            pernah punya record protected) — tidak ada apa pun yang perlu
            di-pause, cukup anggap berhasil. */
         if (!u) return { save: false, result: { ok: true } };
-        if ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password)) {
+        if (!viaToken && ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password))) {
             return { save: false, result: { ok: false } };
         }
         if (u.activated !== true) return { save: false, result: { ok: true } };

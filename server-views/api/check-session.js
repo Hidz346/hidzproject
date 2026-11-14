@@ -2,6 +2,7 @@ var db = require('../../lib/db');
 var securityGuard = require('../../lib/security');
 var vipCheckout = require('../../lib/project-vip-checkout');
 var globalChat = require('../../lib/global-chat');
+var sso = require('../../lib/sso');
 
 module.exports = async function (req, res) {
     var queryAction = (req.query && req.query.vipAction) || (req.body && req.body.vipAction) || '';
@@ -13,6 +14,7 @@ module.exports = async function (req, res) {
     if (queryAction) {
         var actionName = String(queryAction);
         if (actionName.indexOf('chat-') === 0) await globalChat.handleAction(actionName, req, res);
+        else if (actionName.indexOf('sso-') === 0) await sso.handleAction(actionName, req, res);
         else await vipCheckout.handleAction(actionName, req, res);
         return;
     }

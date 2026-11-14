@@ -13,6 +13,10 @@ export default async function handler(req, res) {
   res.json = (body) => {
     if (body && body.valid === true) {
       body.vault = getVault(body.role || (req.body && req.body.role));
+    } else if (body && body.ok && Array.isArray(body.results)) {
+      /* Permintaan ganti akun yang disetujui admin: pemohon masuk otomatis, jadi daftar project ikut dikirim. */
+      const approved = body.results.filter(r => r && r.firebaseToken && r.account)[0];
+      if (approved) body.vault = getVault(approved.account.role);
     }
     return origJson(body);
   };

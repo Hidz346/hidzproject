@@ -12,6 +12,7 @@
 
 var db = require('../../lib/db');
 var pw = require('../../lib/password');
+var firebaseAuth = require('../../lib/firebase-auth');
 
 /* Password sengaja TIDAK ikut dikirim balik ke browser — sama seperti
    /api/login, browser yang minta ini sudah tahu passwordnya sendiri (baru
@@ -21,9 +22,7 @@ var pw = require('../../lib/password');
    di-hash, nilai hash itu bakal ketimpa jadi "password" versi lokal di
    browser dan bikin permintaan logout berikutnya gagal cocok. */
 function sanitize(u) {
-    var copy = {};
-    Object.keys(u).forEach(function (k) { if (k !== 'password') copy[k] = u[k]; });
-    return copy;
+    return Object.assign(db.stripSecrets(u), db.identityInfo(u));
 }
 
 var securityGuard = require('../../lib/security');
@@ -41,7 +40,12 @@ module.exports = async function (req, res) {
     var password = typeof body.password === 'string' ? body.password : '';
     var role     = typeof body.role === 'string' ? body.role : '';
 
-    if (!id || !username || !password) {
+    /* Akun yang masuk dengan Google tidak punya password untuk dikirim: dikenali lewat token Firebase yang
+       uid-nya sama dengan id akun. */
+    var tokenUid = await firebaseAuth.uidFromRequest(req);
+    var viaToken = !!tokenUid && tokenUid === id && id !== 'admin_hidz_protected' && role !== 'admin';
+
+    if (!id || (!viaToken && (!username || !password))) {
         res.status(200).json({ ok: false });
         return;
     }
@@ -72,7 +76,7 @@ module.exports = async function (req, res) {
         if (idx === -1) return { save: false, result: { ok: true, account: null } };
 
         var u = list[idx];
-        if ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password)) {
+        if (!viaToken && ((u.username || '').toLowerCase() !== username.toLowerCase() || !pw.verifyPassword(password, u.password))) {
             return { save: false, result: { ok: false } };
         }
 
