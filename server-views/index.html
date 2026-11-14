@@ -1928,9 +1928,37 @@ transition: border-color 0.15s ease, background 0.15s ease;
 -webkit-user-select: auto !important;
 user-select: auto !important;
 }
-.lc-input:focus { border-color: var(--au-accent); background: rgba(59,109,240,0.06); }
+.lc-input:focus { border-color: var(--au-accent); background-color: rgba(59,109,240,0.06); }
 .lc-input::placeholder { color: var(--au-dim); }
 .lc-hint { margin: -8px 0 14px; font: 500 11px/1.5 'Space Grotesk', sans-serif; color: var(--au-dim); }
+.lc-row { display: flex; gap: 10px; margin-bottom: 8px; }
+.lc-row .lc-input { margin-bottom: 0; }
+.lc-row + .lc-hint, .lc-seg + .lc-hint { margin-top: 0; }
+.lc-num { flex: 0 0 92px; width: 92px; }
+.lc-num:disabled { opacity: 0.4; }
+.lc-select {
+flex: 1;
+min-width: 0;
+padding-right: 36px;
+-webkit-appearance: none;
+appearance: none;
+background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239b98a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+background-repeat: no-repeat;
+background-position: right 14px center;
+}
+.lc-select option { background: var(--au-card); color: var(--au-text); }
+.lc-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+.lc-seg button {
+height: 42px;
+border: 1px solid var(--au-line);
+border-radius: 12px;
+background: rgba(255,255,255,0.04);
+color: var(--au-muted);
+font: 700 12px 'Space Grotesk', sans-serif;
+cursor: pointer;
+transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.lc-seg button.on { border-color: var(--au-accent); background-color: rgba(59,109,240,0.16); color: var(--au-text); }
 .lc-pw-wrap { position: relative; margin-bottom: 14px; }
 .lc-pw-wrap .lc-input { margin-bottom: 0; padding-right: 44px; }
 .lc-pw-toggle {
@@ -4802,7 +4830,7 @@ type="audio/mpeg"
 </div>
 <ol class="lc-steps">
 <li><b>1</b><span>Verifikasi akun Google atau GitHub</span></li>
-<li><b>2</b><span>Buat username &amp; password (wajib diisi)</span></li>
+<li><b>2</b><span>Buat username &amp; password (wajib), lalu pilih durasi dan limit device</span></li>
 <li><b>3</b><span>Akunmu langsung tercatat dan siap dipakai</span></li>
 </ol>
 <p class="lc-switch">Sudah punya akun? <button type="button" data-go="login">Masuk sekarang</button></p>
@@ -4818,6 +4846,27 @@ type="audio/mpeg"
 <input type="password" class="lc-input" id="lcSetupPass" placeholder="Minimal 6 karakter" autocomplete="new-password" maxlength="64">
 <label class="lc-field-label" for="lcSetupPass2">Ulangi password</label>
 <input type="password" class="lc-input" id="lcSetupPass2" placeholder="Ketik ulang password" autocomplete="new-password" maxlength="64">
+<label class="lc-field-label" for="lcSetupDurUnit">Durasi akses</label>
+<div class="lc-row">
+<input type="number" class="lc-input lc-num" id="lcSetupDurVal" value="1" min="1" max="9999" inputmode="numeric" aria-label="Jumlah durasi" disabled>
+<select class="lc-input lc-select" id="lcSetupDurUnit">
+<option value="unlimited" selected>UNLIMITED</option>
+<option value="menit">MENIT</option>
+<option value="jam">JAM</option>
+<option value="hari">HARI</option>
+<option value="minggu">MINGGU</option>
+<option value="bulan">BULAN</option>
+<option value="tahun">TAHUN</option>
+</select>
+</div>
+<p class="lc-hint">Kalau dibatasi, akunmu tidak bisa masuk setelah durasi habis sampai diperpanjang admin.</p>
+<span class="lc-field-label" id="lcSetupDevLbl">Limit device</span>
+<div class="lc-seg" id="lcSetupDev" role="group" aria-labelledby="lcSetupDevLbl">
+<button type="button" data-dev="1" aria-pressed="false">1 Device</button>
+<button type="button" data-dev="2" aria-pressed="true" class="on">2 Device</button>
+<button type="button" data-dev="0" aria-pressed="false">Unlimited</button>
+</div>
+<p class="lc-hint">Jumlah perangkat yang boleh masuk dengan akunmu. Perangkat di atas batas akan diblokir. Role akun selalu USER.</p>
 <button type="button" class="lc-btn-login lc-submit" id="lcSetupBtn"><i class="fas fa-user-plus"></i>BUAT AKUN</button>
 <p class="lc-switch"><button type="button" data-act="cancel-setup">Batalkan pendaftaran</button></p>
 </section>
@@ -7716,7 +7765,7 @@ sama seperti login biasa: plan, masa aktif, batas perangkat, chat, dan notifikas
 Tombol Google/GitHub baru tampil kalau GOOGLE_CLIENT_ID / GITHUB_CLIENT_ID diatur di Vercel (atribut data-* di
 #loginOverlay); tanpa itu kartu masuk hanya berisi username & password. */
 var _view = 'login';
-var _ctx = { setup: '', recover: '', provider: '', label: '', username: '' };
+var _ctx = { setup: '', recover: '', provider: '', label: '', username: '', dev: 2 };
 var _reqs = [];
 var _pollTimer = null, _pollBusy = false, _claiming = false;
 var _gsiPromise = null, _gsiReady = false;
@@ -7935,6 +7984,8 @@ if (res.reason === 'identity_invalid') return 'Verifikasi Google atau GitHub gag
 if (res.reason === 'username_invalid') return 'Username 3-20 karakter: huruf, angka, titik, garis bawah, atau strip.';
 if (res.reason === 'password_invalid') return 'Password minimal 6 karakter dan tidak diawali atau diakhiri spasi.';
 if (res.reason === 'username_taken') return 'Username sudah dipakai, pilih yang lain.';
+if (res.reason === 'duration_invalid') return 'Durasi tidak valid. Isi angka mulai 1 menit sampai maksimal 100 tahun.';
+if (res.reason === 'device_invalid') return 'Pilihan limit device tidak valid.';
 if (res.error) {
 if (res.code === 'FIREBASE_AUTH_CONFIG') return 'Konfigurasi autentikasi keamanan server belum lengkap. Hubungi admin.';
 if (res.code === 'GOOGLE_NOT_CONFIGURED') return 'Login Google belum dikonfigurasi di server. Hubungi admin.';
@@ -7957,6 +8008,35 @@ if (p.length > 64) return 'Password maksimal 64 karakter.';
 if (p !== p.trim()) return 'Password tidak boleh diawali atau diakhiri spasi.';
 if (p !== c) return 'Konfirmasi password tidak sama.';
 return '';
+}
+/* Durasi dan limit device yang dipilih pendaftar (role selalu user, ditentukan server). */
+var _DUR_MS = { menit: 60000, jam: 3600000, hari: 86400000, minggu: 604800000, bulan: 2592000000, tahun: 31536000000 };
+var _DUR_MAX_MS = 100 * 31536000000;
+function _setDev(v) {
+_ctx.dev = v;
+[].forEach.call(_byId('lcSetupDev').querySelectorAll('button[data-dev]'), function (b) {
+var on = b.getAttribute('data-dev') === String(v);
+b.classList.toggle('on', on);
+b.setAttribute('aria-pressed', on ? 'true' : 'false');
+});
+}
+function _syncDurUnit() {
+_byId('lcSetupDurVal').disabled = _byId('lcSetupDurUnit').value === 'unlimited';
+}
+function _resetSetupTerms() {
+_byId('lcSetupDurUnit').value = 'unlimited';
+_byId('lcSetupDurVal').value = '1';
+_syncDurUnit();
+_setDev(2);
+}
+function _readSetupTerms() {
+var unit = _byId('lcSetupDurUnit').value;
+if (unit === 'unlimited') return { deviceLimit: _ctx.dev, durationUnit: 'unlimited' };
+var raw = _byId('lcSetupDurVal').value.trim();
+var val = /^[0-9]{1,4}$/.test(raw) ? parseInt(raw, 10) : 0;
+var ms = val * (_DUR_MS[unit] || 0);
+if (val < 1 || ms < 60000 || ms > _DUR_MAX_MS) return null;
+return { deviceLimit: _ctx.dev, durationUnit: unit, durationValue: val };
 }
 function _ssoSignIn(acc, token, onFail) {
 acc.password = '';
@@ -7985,6 +8065,7 @@ _byId('lcSetupLabel').textContent = _provName(res.provider) + ' terverifikasi: '
 _byId('lcSetupUser').value = res.suggestedUsername || '';
 _byId('lcSetupPass').value = '';
 _byId('lcSetupPass2').value = '';
+_resetSetupTerms();
 _setView('setup');
 _focusFirst();
 return;
@@ -8024,9 +8105,11 @@ if (_loginBusy) return;
 var u = _byId('lcSetupUser').value.trim(), p = _byId('lcSetupPass').value, c = _byId('lcSetupPass2').value;
 var bad = _credError(u, p, c);
 if (bad) { _showError(bad); return; }
+var terms = _readSetupTerms();
+if (!terms) { _showError('Durasi tidak valid. Isi angka mulai 1 menit sampai maksimal 100 tahun.'); return; }
 _showError('');
 _setLoginBusy(true);
-_post('/api/login', Object.assign({ action: 'sso-register', setupToken: _ctx.setup, username: u, password: p }, _gate())).then(function (res) {
+_post('/api/login', Object.assign({ action: 'sso-register', setupToken: _ctx.setup, username: u, password: p }, terms, _gate())).then(function (res) {
 if (res && res.ok && res.account && res.firebaseToken) {
 if (res.vault && window._applyHidzVault) window._applyHidzVault(res.vault);
 _ssoSignIn(res.account, res.firebaseToken);
@@ -8229,9 +8312,10 @@ if (el && _cfg('data-google-client')) _renderGoogleButton(el);
 var ov = _byId('loginOverlay');
 if (!ov) return;
 ov.addEventListener('click', function (e) {
-var t = e.target.closest ? e.target.closest('[data-go],[data-act],[data-gh]') : null;
+var t = e.target.closest ? e.target.closest('[data-go],[data-act],[data-gh],[data-dev]') : null;
 if (!t) { if (e.target === ov && _view !== 'setup') window.closeLoginSheet(); return; }
 if (t.hasAttribute('data-gh')) { _startGithub(); return; }
+if (t.hasAttribute('data-dev')) { _setDev(parseInt(t.getAttribute('data-dev'), 10)); return; }
 var go = t.getAttribute('data-go');
 if (go) { _go(go); return; }
 var act = t.getAttribute('data-act');
@@ -8242,6 +8326,8 @@ var close = _byId('lcClose');
 if (close) close.addEventListener('click', window.closeLoginSheet);
 var setupBtn = _byId('lcSetupBtn');
 if (setupBtn) setupBtn.addEventListener('click', _submitSetup);
+var durUnit = _byId('lcSetupDurUnit');
+if (durUnit) durUnit.addEventListener('change', _syncDurUnit);
 var recBtn = _byId('lcRecoverBtn');
 if (recBtn) recBtn.addEventListener('click', _submitRecover);
 document.addEventListener('keydown', function (e) {

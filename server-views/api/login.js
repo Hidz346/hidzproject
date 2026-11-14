@@ -149,7 +149,7 @@ module.exports = async function (req, res) {
             expiresAt:     found.expiresAt || null,
             durationMs:    (typeof found.durationMs === 'number') ? found.durationMs : null,
             durationLabel: found.durationLabel || 'UNLIMITED',
-            deviceLimit:   found.deviceLimit || 1,
+            deviceLimit:   typeof found.deviceLimit === 'number' ? found.deviceLimit : 1,
             activated:     found.activated,
             logoutAt:      found.logoutAt || null
         }, db.identityInfo(found))
